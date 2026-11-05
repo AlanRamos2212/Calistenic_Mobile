@@ -10,15 +10,15 @@ endpoints devuelven un JWT que se guarda en almacenamiento seguro.
 1. Inicia el backend y sus dependencias desde `Backend_Calistenic` con
    `docker compose up --build`.
 2. Ejecuta la app Flutter. Para el emulador Android, la URL predeterminada es
-   `http://10.0.2.2:8083/api`.
+   `http://10.0.2.2:8082/api`.
 3. En un teléfono físico conectado a la misma red Wi-Fi, configura la IP local
    de la computadora:
 
    ```powershell
-   flutter run --dart-define=API_BASE_URL=http://<IP-DE-TU-PC>:8083/api
+   flutter run --dart-define=API_BASE_URL=http://<IP-DE-TU-PC>:8082/api
    ```
 
-Para iOS Simulator, usa `http://127.0.0.1:8083/api`. Las URL HTTP son para
+Para iOS Simulator, usa `http://127.0.0.1:8082/api`. Las URL HTTP son para
 desarrollo local; usa HTTPS para despliegues.
 
 ## Recursos de Flutter
