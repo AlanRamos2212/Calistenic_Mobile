@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import '../constants/api_constants.dart';
 import 'api_exception.dart';
@@ -122,9 +123,21 @@ class ApiClient {
       if (token == null || token.isEmpty) {
         throw const ApiException('No hay sesión activa.');
       }
+
+      // Infer image MIME type from file extension
+      final ext = file.path.split('.').last.toLowerCase();
+      final subType = (ext == 'png' || ext == 'webp' || ext == 'gif')
+          ? ext
+          : 'jpeg'; // default to jpeg for jpg/other
+      final mediaType = MediaType('image', subType);
+
       final request = http.MultipartRequest('POST', _uri(path))
         ..headers['Authorization'] = 'Bearer $token'
-        ..files.add(await http.MultipartFile.fromPath(fieldName, file.path));
+        ..files.add(await http.MultipartFile.fromPath(
+          fieldName,
+          file.path,
+          contentType: mediaType,
+        ));
 
       final streamedResponse = await request.send().timeout(ApiConstants.requestTimeout);
       final response = await http.Response.fromStream(streamedResponse);

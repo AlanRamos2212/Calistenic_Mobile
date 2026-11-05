@@ -31,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   UserProfileModel? _profile;
   UserStats? _stats;
+  File? _localAvatarFile;
   bool _signingOut = false;
   bool _loadingAvatar = false;
   bool _isOffline = false;
@@ -188,17 +189,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (picked == null || !mounted) return;
 
-    setState(() => _loadingAvatar = true);
+    final imageFile = File(picked.path);
+    // Optimistically show the chosen local image immediately
+    setState(() {
+      _localAvatarFile = imageFile;
+      _loadingAvatar = true;
+    });
+
     try {
-      final avatarUrl = await _profileService.uploadAvatar(File(picked.path));
+      final avatarUrl = await _profileService.uploadAvatar(imageFile);
       if (mounted) {
         setState(() {
           _profile = _profile?.copyWith(avatarUrl: avatarUrl);
+          _localAvatarFile = null;
         });
+        _showSnack('Foto actualizada ✓');
       }
-      _showSnack('Foto actualizada ✓');
     } on ApiException catch (e) {
-      _showSnack(e.message, error: true);
+      if (mounted) {
+        setState(() => _localAvatarFile = null);
+        _showSnack(e.message, error: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _localAvatarFile = null);
+        _showSnack('No se pudo subir la foto: $e', error: true);
+      }
     } finally {
       if (mounted) setState(() => _loadingAvatar = false);
     }
@@ -296,11 +312,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? get _fullAvatarUrl {
     final rel = _profile?.avatarUrl;
     if (rel == null || rel.isEmpty) return null;
-    // rel may be "/api/media/abc.jpg" or just "abc.jpg"
-    if (rel.startsWith('http')) return rel;
-    final base = ApiConstants.baseUrl.replaceAll(RegExp(r'/api$'), '');
+    if (rel.startsWith('http://') || rel.startsWith('https://')) return rel;
+    final base = ApiConstants.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
     if (rel.startsWith('/api/')) return '$base$rel';
-    return '${ApiConstants.baseUrl}/media/$rel';
+    if (rel.startsWith('/')) return '$base$rel';
+    return '$base/api/media/$rel';
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -458,6 +474,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // ── Widgets ───────────────────────────────────────────────────────────────
 
   Widget _buildAvatar() {
+    if (_localAvatarFile != null) {
+      return CircleAvatar(
+        radius: 50,
+        backgroundColor: AppColors.blue,
+        backgroundImage: FileImage(_localAvatarFile!),
+      );
+    }
+
     final url = _fullAvatarUrl;
     return GestureDetector(
       onTap: _loadingAvatar ? null : _pickAndUploadAvatar,
