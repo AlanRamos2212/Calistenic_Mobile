@@ -1,6 +1,7 @@
 /// Comment mapped from `CommentResponse` (`GET /api/posts/{id}/comments`).
 class CommentModel {
   final String id;
+  final int userId;
   final String userName;
   final String? userAvatarUrl;
   final String content;
@@ -8,6 +9,7 @@ class CommentModel {
 
   const CommentModel({
     required this.id,
+    this.userId = 0,
     required this.userName,
     this.userAvatarUrl,
     required this.content,
@@ -20,6 +22,9 @@ class CommentModel {
     final avatar = '${json['userAvatar'] ?? ''}'.trim();
     return CommentModel(
       id: '$rawId',
+      userId: (json['userId'] is int)
+          ? json['userId'] as int
+          : int.tryParse('${json['userId'] ?? ''}') ?? 0,
       userName: name.isNotEmpty ? name : 'Usuario',
       userAvatarUrl: avatar.isNotEmpty ? avatar : null,
       content: '${json['content'] ?? ''}'.trim(),

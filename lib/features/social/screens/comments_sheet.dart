@@ -15,11 +15,28 @@ class CommentsSheet extends StatefulWidget {
   /// its local counters or lists.
   final void Function(CommentModel comment)? onCommented;
 
-  const CommentsSheet({super.key, required this.postId, this.onCommented});
+  const CommentsSheet({
+    super.key,
+    required this.postId,
+    this.onCommented,
+    this.currentUserId,
+    this.onCommentDeleted,
+  });
+
+  /// Id of the authenticated user; enables the delete affordance on their comments.
+  final int? currentUserId;
+
+  /// Called after a comment is deleted so the caller can update its counters.
+  final void Function(String commentId)? onCommentDeleted;
 
   /// Convenience wrapper so the caller shows the sheet with the right theme.
-  static Future<void> show(BuildContext context,
-      {required String postId, void Function(CommentModel)? onCommented}) {
+  static Future<void> show(
+    BuildContext context, {
+    required String postId,
+    void Function(CommentModel)? onCommented,
+    int? currentUserId,
+    void Function(String commentId)? onCommentDeleted,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -32,7 +49,12 @@ class CommentsSheet extends StatefulWidget {
         padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: CommentsSheet(postId: postId, onCommented: onCommented),
+        child: CommentsSheet(
+          postId: postId,
+          onCommented: onCommented,
+          currentUserId: currentUserId,
+          onCommentDeleted: onCommentDeleted,
+        ),
       ),
     );
   }
@@ -199,6 +221,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
   Widget _item(CommentModel c) {
     final avatar = absoluteUrl(c.userAvatarUrl);
+    final isOwn = widget.currentUserId != null && c.userId == widget.currentUserId;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: avatar == null
@@ -242,7 +265,55 @@ class _CommentsSheetState extends State<CommentsSheet> {
         ],
       ),
       subtitle: Text(c.content, style: const TextStyle(fontSize: 13)),
+      trailing: isOwn
+          ? IconButton(
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.subtext),
+              tooltip: 'Eliminar comentario',
+              onPressed: () => _confirmDelete(c),
+            )
+          : null,
     );
+  }
+
+  Future<void> _confirmDelete(CommentModel c) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Eliminar comentario'),
+            content: const Text('Esta acción no se puede deshacer.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _socialService.deleteComment(widget.postId, c.id);
+      if (mounted) {
+        setState(() => _comments = _comments.where((x) => x.id != c.id).toList());
+        widget.onCommentDeleted?.call(c.id);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo eliminar el comentario.')));
+      }
+    }
   }
 
   Widget _composer() {

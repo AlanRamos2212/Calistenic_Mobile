@@ -80,6 +80,11 @@ class SocialService {
     await _api.delete(ApiConstants.post(postId));
   }
 
+  /// Deletes a comment authored by the caller (`DELETE /api/posts/{id}/comments/{cid}`).
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _api.delete(ApiConstants.postComment(postId, commentId));
+  }
+
   /// Loads the comments of a post, oldest first.
   Future<List<CommentModel>> comments(String postId) async {
     final data = await _api.get(ApiConstants.postComments(postId));

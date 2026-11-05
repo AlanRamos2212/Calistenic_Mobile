@@ -251,12 +251,24 @@ class _SocialScreenState extends State<SocialScreen> {
     await CommentsSheet.show(
       context,
       postId: post.id,
+      currentUserId: _currentUserId,
       onCommented: (comment) {
         if (mounted) {
           setState(() {
             _posts = _posts
                 .map((p) => p.id == post.id
                     ? p.copyWith(comments: p.comments + 1)
+                    : p)
+                .toList();
+          });
+        }
+      },
+      onCommentDeleted: (commentId) {
+        if (mounted) {
+          setState(() {
+            _posts = _posts
+                .map((p) => p.id == post.id
+                    ? p.copyWith(comments: p.comments > 0 ? p.comments - 1 : 0)
                     : p)
                 .toList();
           });
