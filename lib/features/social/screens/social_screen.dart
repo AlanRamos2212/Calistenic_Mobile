@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../shared/widgets/frame_scaffold.dart';
 import '../../../shared/widgets/post_card.dart';
 import '../../../shared/widgets/section_label.dart';
+import '../../auth/services/auth_service.dart';
 import '../models/post_model.dart';
 import '../services/social_service.dart';
 import '../screens/comments_sheet.dart';
@@ -28,13 +29,30 @@ class _SocialScreenState extends State<SocialScreen> {
   bool _loading = false;
   bool _failed = false;
   bool _publishing = false;
+  int? _currentUserId;
   File? _pickedImage;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadFeed();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final profile = await AuthService().fetchProfile();
+      final rawId = profile['id'];
+      if (mounted) {
+        setState(() => _currentUserId = rawId is num
+            ? rawId.toInt()
+            : int.tryParse('$rawId'));
+      }
+    } on ApiException {
+      // The feed remains usable; the delete action stays hidden if the
+      // authenticated profile cannot be loaded.
+    }
   }
 
   @override
@@ -185,6 +203,38 @@ class _SocialScreenState extends State<SocialScreen> {
       }
     } catch (e) {
       if (mounted) _showSnackBar('No se pudo actualizar el like.');
+    }
+  }
+
+  Future<void> _deletePost(PostModel post) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Eliminar publicación'),
+            content: const Text('Esta acción no se puede deshacer.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+
+    try {
+      await _socialService.delete(post.id);
+      if (mounted) {
+        setState(() => _posts = _posts.where((p) => p.id != post.id).toList());
+        _showSnackBar('Publicación eliminada.');
+      }
+    } on ApiException catch (e) {
+      _showSnackBar(e.message);
     }
   }
 
@@ -377,6 +427,9 @@ class _SocialScreenState extends State<SocialScreen> {
                   onLike: () => _toggleLike(post),
                   onComment: () => _openComments(post),
                   onShare: () => _showSnackBar('Compartir próximamente.'),
+                  canDelete: _currentUserId != null &&
+                      post.authorUserId == _currentUserId,
+                  onDelete: () => _deletePost(post),
                 ),
               ),
             ),

@@ -75,6 +75,11 @@ class SocialService {
     return data['liked'] == true;
   }
 
+  /// Deletes a post. The backend verifies that the authenticated user owns it.
+  Future<void> delete(String postId) async {
+    await _api.delete(ApiConstants.post(postId));
+  }
+
   /// Loads the comments of a post, oldest first.
   Future<List<CommentModel>> comments(String postId) async {
     final data = await _api.get(ApiConstants.postComments(postId));

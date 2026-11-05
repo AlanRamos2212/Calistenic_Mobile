@@ -20,6 +20,8 @@ class PostCard extends StatelessWidget {
   final VoidCallback? onLike;
   final VoidCallback? onComment;
   final VoidCallback? onShare;
+  final bool canDelete;
+  final VoidCallback? onDelete;
 
   const PostCard({
     super.key,
@@ -35,6 +37,8 @@ class PostCard extends StatelessWidget {
     this.onLike,
     this.onComment,
     this.onShare,
+    this.canDelete = false,
+    this.onDelete,
   });
 
   @override
@@ -73,7 +77,21 @@ class PostCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.more_horiz, color: AppColors.subtext),
+              if (canDelete)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_horiz, color: AppColors.subtext),
+                  onSelected: (value) {
+                    if (value == 'delete') onDelete?.call();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Eliminar publicación'),
+                    ),
+                  ],
+                )
+              else
+                const Icon(Icons.more_horiz, color: AppColors.subtext),
             ],
           ),
           const SizedBox(height: 14),

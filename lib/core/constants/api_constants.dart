@@ -25,6 +25,7 @@ class ApiConstants {
   static const String posts = '/posts';
 
   static String postLike(String postId) => '/posts/$postId/like';
+  static String post(String postId) => '/posts/$postId';
   static String postComments(String postId) => '/posts/$postId/comments';
 
   // Secure storage keys

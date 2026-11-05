@@ -110,6 +110,24 @@ class ApiClient {
     }
   }
 
+  /// Authenticated DELETE. Returns null for a successful 204 response.
+  Future<dynamic> delete(String path) async {
+    try {
+      final response = await _client
+          .delete(_uri(path), headers: await _authHeaders())
+          .timeout(ApiConstants.requestTimeout);
+      return _decode(response);
+    } on ApiException {
+      rethrow;
+    } on TimeoutException {
+      throw const ApiException('El servidor no respondió a tiempo.');
+    } on http.ClientException {
+      throw const ApiException('No se pudo conectar con el servidor.');
+    } catch (e) {
+      throw ApiException('Error inesperado: $e');
+    }
+  }
+
   /// Authenticated multipart POST for file uploads.
   ///
   /// [fieldName] is the form-data field name the backend expects (e.g. "avatar").
