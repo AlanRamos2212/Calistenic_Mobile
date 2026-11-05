@@ -1,9 +1,14 @@
 import 'dart:convert';
 
+import 'package:calistenic_mobile/core/network/api_client.dart';
 import 'package:calistenic_mobile/core/network/api_exception.dart';
 import 'package:calistenic_mobile/features/achievements/services/achievement_service.dart';
 import 'package:calistenic_mobile/features/exercises/services/exercise_service.dart';
 import 'package:calistenic_mobile/features/profile/services/profile_service.dart';
+import 'package:calistenic_mobile/features/routines/models/routine_detail_model.dart';
+import 'package:calistenic_mobile/features/routines/models/routine_summary_model.dart';
+import 'package:calistenic_mobile/features/routines/services/routine_service.dart';
+import 'package:calistenic_mobile/features/routines/services/workout_service.dart';
 import 'package:calistenic_mobile/features/social/models/post_model.dart';
 import 'package:calistenic_mobile/features/social/services/social_service.dart';
 import 'package:calistenic_mobile/features/stats/services/stats_service.dart';
@@ -408,6 +413,161 @@ void main() {
           isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401),
         ),
       );
+    });
+  });
+
+  // ── RoutineService (GET /api/routines) ─────────────────────────────────
+
+  group('RoutineService', () {
+    const routineJson = [
+      {
+        'id': 2,
+        'title': 'Fuerza Superior',
+        'subtitle': 'Espalda y empuje',
+        'category': 'upper_body',
+        'level': 'intermedio',
+        'durationMin': 40,
+        'estimatedCalories': 450,
+        'coverImageUrl': null,
+        'exerciseCount': 2,
+      },
+    ];
+
+    test('list parses RoutineResponse cards with meta text', () async {
+      final httpClient = MockClient((request) async {
+        expect(request.url.path.endsWith('/routines'), isTrue);
+        return http.Response(jsonEncode(routineJson), 200,
+            headers: {'content-type': 'application/json'});
+      });
+
+      final service = RoutineService(client: httpClient);
+      final routines = await service.list();
+
+      expect(routines, hasLength(1));
+      expect(routines.first, isA<RoutineSummaryModel>());
+      expect(routines.first.id, '2');
+      expect(routines.first.title, 'Fuerza Superior');
+      expect(routines.first.exerciseCount, 2);
+      expect(routines.first.meta, '40 min · 450 kcal · 2 ejercicios');
+    });
+
+    test('detail parses ordered exercises with prescriptions', () async {
+      final httpClient = MockClient((request) async {
+        expect(request.url.path.endsWith('/routines/2'), isTrue);
+        return http.Response(
+          jsonEncode({
+            'id': 2,
+            'title': 'Fuerza Superior',
+            'subtitle': 'Espalda y empuje',
+            'category': 'upper_body',
+            'level': 'intermedio',
+            'durationMin': 40,
+            'estimatedCalories': 450,
+            'exercises': [
+              {
+                'id': 2,
+                'name': 'Pull-ups',
+                'category': 'upper_body',
+                'level': 'intermedio',
+                'muscles': 'Espalda,Bíceps',
+                'estimatedCalories': 150,
+                'position': 1,
+                'sets': 4,
+                'reps': 8,
+                'restSeconds': 90,
+              },
+              {
+                'id': 4,
+                'name': 'Plank Isométrico',
+                'category': 'core',
+                'level': 'principiante',
+                'position': 2,
+                'sets': 3,
+                'reps': null,
+                'restSeconds': 45,
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final service = RoutineService(client: httpClient);
+      final detail = await service.detail('2');
+
+      expect(detail, isA<RoutineDetailModel>());
+      expect(detail.exercises, hasLength(2));
+      expect(detail.exercises[0].prescriptionLabel, '4 × 8');
+      expect(detail.exercises[0].restLabel, '90 s');
+      expect(detail.exercises[0].estimatedCalories, 150);
+      // Time-based exercise keeps reps nullable.
+      expect(detail.exercises[1].reps, isNull);
+      expect(detail.exercises[1].prescriptionLabel, '3 series');
+    });
+
+    test('list falls back to cache when the backend is unreachable', () async {
+      final online = MockClient((_) async => http.Response(
+          jsonEncode(routineJson), 200,
+          headers: {'content-type': 'application/json'}));
+      await RoutineService(client: online).fetchAndCache();
+
+      final offline = RoutineService(
+        client: MockClient((_) async => throw http.ClientException('down')),
+      );
+      expect((await offline.list()).first.title, 'Fuerza Superior');
+    });  });
+
+  // ── WorkoutService (wearable-sessions start/stop) ──────────────────────
+
+  group('WorkoutService', () {
+    test('startSession posts only the exerciseId and returns the session id',
+        () async {
+      late http.Request captured;
+      final httpClient = MockClient((request) async {
+        expect(request.url.path.endsWith('/wearable-sessions/start'), isTrue);
+        expect(request.method, 'POST');
+        captured = request;
+        return http.Response(jsonEncode({
+          'id': 77,
+          'exerciseId': 2,
+          'status': 'STARTED',
+        }), 200, headers: {'content-type': 'application/json'});
+      });
+
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      final id = await service.startSession(2);
+
+      final body = jsonDecode(captured.body) as Map<String, dynamic>;
+      expect(body['exerciseId'], 2);
+      // Sessions from the phone are logged without a wrist device.
+      expect(body.containsKey('wearableId'), isFalse);
+      expect(body.containsKey('userId'), isFalse);
+      expect(id, 77);
+    });
+
+    test('stopSession sends honest metrics: duration + calories, no HR data',
+        () async {
+      late http.Request captured;
+      final httpClient = MockClient((request) async {
+        expect(request.url.path.endsWith('/wearable-sessions/77/stop'),
+            isTrue);
+        captured = request;
+        return http.Response(jsonEncode({'status': 'COMPLETED'}), 200,
+            headers: {'content-type': 'application/json'});
+      });
+
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      await service.stopSession(77, durationSec: 612, caloriesBurned: 96.5);
+
+      final body = jsonDecode(captured.body) as Map<String, dynamic>;
+      expect(body['durationSec'], 612);
+      expect(body['caloriesBurned'], 96.5);
+      expect(DateTime.tryParse('${body['endedAt']}'), isNotNull);
+      // There is no heart-rate measured on the phone: those fields stay out.
+      expect(body.containsKey('avgHr'), isFalse);
+      expect(body.containsKey('maxHr'), isFalse);
+      expect(body.containsKey('minHr'), isFalse);
     });
   });
 }

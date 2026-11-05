@@ -20,9 +20,19 @@ class ApiConstants {
 
   // Feature endpoints (matching Spring Boot controllers)
   static const String exercises = '/exercises';
+  static String exerciseDetail(String id) => '/exercises/$id';
   static const String statsUser = '/stats/user';
   static const String achievements = '/achievements';
   static const String posts = '/posts';
+
+  // Routines (Fase B contract)
+  static const String routines = '/routines';
+  static String routineDetail(String id) => '/routines/$id';
+
+  // Wearable sessions (per-exercise workout logging)
+  static const String sessionStart = '/wearable-sessions/start';
+  static String sessionMetrics(String sessionId) => '/wearable-sessions/$sessionId/metrics';
+  static String sessionStop(String sessionId) => '/wearable-sessions/$sessionId/stop';
 
   static String postLike(String postId) => '/posts/$postId/like';
   static String post(String postId) => '/posts/$postId';
@@ -42,6 +52,8 @@ class ApiConstants {
   static const String cacheAchievements = 'cache.achievements';
   static const String cachePosts = 'cache.posts';
   static const String cacheUserProfile = 'cache.user_profile';
+  static const String cacheRoutines = 'cache.routines';
+  static String cacheRoutineDetail(String id) => 'cache.routine.$id';
 
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 12);

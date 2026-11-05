@@ -8,8 +8,12 @@ import '../../../shared/widgets/section_label.dart';
 import '../../../shared/widgets/training_card.dart';
 import '../../exercises/models/exercise_model.dart';
 import '../../exercises/services/exercise_service.dart';
+import '../models/routine_summary_model.dart';
+import '../services/routine_service.dart';
+import 'routine_detail_screen.dart';
 
-/// Shows the exercise catalog from `GET /api/exercises` with Offline-First support.
+/// Shows curated routines (`GET /api/routines`) plus the exercise catalog
+/// from `GET /api/exercises`, both with Offline-First support.
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
 
@@ -19,8 +23,10 @@ class RoutinesScreen extends StatefulWidget {
 
 class _RoutinesScreenState extends State<RoutinesScreen> {
   final _exerciseService = ExerciseService();
+  final _routineService = RoutineService();
   String _selectedCategory = 'Todas';
   List<ExerciseModel> _exercises = const [];
+  List<RoutineSummaryModel> _routines = const [];
   bool _loading = false;
   bool _failed = false;
   bool _isOfflineFallback = false;
@@ -29,6 +35,23 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   void initState() {
     super.initState();
     _loadExercises();
+    _loadRoutines();
+  }
+
+  /// Cached-first routines, then a fresh copy from the network.
+  Future<void> _loadRoutines() async {
+    try {
+      final routines = await _routineService.list();
+      if (mounted) setState(() => _routines = routines);
+    } catch (_) {
+      // Routine cards are a bonus; the catalog still loads without them.
+    }
+  }
+
+  void _openRoutine(RoutineSummaryModel routine) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => RoutineDetailScreen(routine: routine),
+    ));
   }
 
   /// 1. Immediately renders cached exercises (0 delay).
@@ -116,7 +139,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
     return FrameScaffold(
       title: 'Rutinas',
-      onRefresh: () => _loadExercises(isPullToRefresh: true),
+      onRefresh: () => Future.wait([
+            _loadExercises(isPullToRefresh: true),
+            _loadRoutines(),
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -128,6 +154,25 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
             style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 20),
+          // Curated routines carousel — tap a card to see its detail and train.
+          if (_routines.isNotEmpty)
+            SizedBox(
+              height: 128,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 6),
+                itemCount: _routines.length,
+                separatorBuilder: (BuildContext _, int _) => const SizedBox(width: 12),
+                itemBuilder: (_, i) {
+                  final routine = _routines[i];
+                  return _RoutineCard(
+                    routine: routine,
+                    onTap: () => _openRoutine(routine),
+                  );
+                },
+              ),
+            ),
+          if (_routines.isNotEmpty) const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             children: categories.map((cat) {
@@ -190,6 +235,62 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Compact horizontal card for a routine summary, styled like TrainingCard.
+class _RoutineCard extends StatelessWidget {
+  const _RoutineCard({required this.routine, required this.onTap});
+
+  final RoutineSummaryModel routine;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 210,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.cardBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              routine.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: Text(
+                routine.subtitle.isEmpty ? routine.meta : routine.subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: AppColors.subtext, fontSize: 11.5, height: 1.25),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              routine.meta,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
       ),
     );
   }
