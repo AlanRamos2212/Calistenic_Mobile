@@ -1,14 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
+import '../models/comment_model.dart';
 import '../models/post_model.dart';
 
 /// Social feed client for the Spring Boot PostController endpoints:
 /// - `GET /api/posts?page=0&size=20` (respuesta Page paginada)
-/// - `POST /api/posts` (CreatePostRequest)
+/// - `POST /api/posts` (JSON) / `POST /api/posts` multipart con imagen opcional
 /// - `POST /api/posts/{id}/like` (toggle like)
 /// - `GET /api/posts/{id}/comments` y `POST /api/posts/{id}/comments`
 class SocialService {
@@ -40,9 +43,23 @@ class SocialService {
     throw const ApiException('El servidor devolvió una respuesta inválida.');
   }
 
-  /// Publishes a new post. Returns the created PostResponse.
-  Future<PostModel> create(String content) async {
-    final data = await _api.post(ApiConstants.posts, body: {'content': content});
+  /// Publishes a new post, with an optional photo. Returns the created post.
+  ///
+  /// Without [imageFile] this goes through the classic JSON endpoint;
+  /// with it, the backend multipart endpoint uploads the photo to
+  /// `uploads/media` and stores the returned path on the post.
+  Future<PostModel> create(String content, {File? imageFile}) async {
+    final dynamic data;
+    if (imageFile == null) {
+      data = await _api.post(ApiConstants.posts, body: {'content': content});
+    } else {
+      data = await _api.postMultipart(
+        ApiConstants.posts,
+        imageFile,
+        'image',
+        fields: {'content': content},
+      );
+    }
     if (data is! Map<String, dynamic>) {
       throw const ApiException('El servidor devolvió una respuesta inválida.');
     }
@@ -58,8 +75,27 @@ class SocialService {
     return data['liked'] == true;
   }
 
-  /// Adds a comment to a post.
-  Future<void> comment(String postId, String content) async {
-    await _api.post(ApiConstants.postComments(postId), body: {'content': content});
+  /// Loads the comments of a post, oldest first.
+  Future<List<CommentModel>> comments(String postId) async {
+    final data = await _api.get(ApiConstants.postComments(postId));
+    if (data is! List) {
+      throw const ApiException('El servidor devolvió una respuesta inválida.');
+    }
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(CommentModel.fromJson)
+        .toList();
+  }
+
+  /// Adds a comment to a post and returns the saved comment.
+  Future<CommentModel> addComment(String postId, String content) async {
+    final data = await _api.post(
+      ApiConstants.postComments(postId),
+      body: {'content': content},
+    );
+    if (data is! Map<String, dynamic>) {
+      throw const ApiException('El servidor devolvió una respuesta inválida.');
+    }
+    return CommentModel.fromJson(data);
   }
 }

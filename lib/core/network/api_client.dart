@@ -113,11 +113,13 @@ class ApiClient {
   /// Authenticated multipart POST for file uploads.
   ///
   /// [fieldName] is the form-data field name the backend expects (e.g. "avatar").
+  /// [fields] carries additional text form-data fields (e.g. {"content": "..."}).
   Future<dynamic> postMultipart(
     String path,
     File file,
-    String fieldName,
-  ) async {
+    String fieldName, {
+    Map<String, String> fields = const {},
+  }) async {
     try {
       final token = await readToken();
       if (token == null || token.isEmpty) {
@@ -133,6 +135,7 @@ class ApiClient {
 
       final request = http.MultipartRequest('POST', _uri(path))
         ..headers['Authorization'] = 'Bearer $token'
+        ..fields.addAll(fields)
         ..files.add(await http.MultipartFile.fromPath(
           fieldName,
           file.path,
