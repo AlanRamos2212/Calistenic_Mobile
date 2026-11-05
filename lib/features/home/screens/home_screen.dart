@@ -1,0 +1,203 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/constants/app_colors.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../shared/widgets/frame_scaffold.dart';
+import '../../../shared/widgets/metric_card.dart';
+import '../../../shared/widgets/offline_banner.dart';
+import '../../../shared/widgets/section_label.dart';
+import '../../../shared/widgets/training_card.dart';
+import '../../auth/services/auth_service.dart';
+import '../../stats/models/stats_model.dart';
+import '../../stats/services/stats_service.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _authService = AuthService();
+  final _statsService = StatsService();
+  String _userName = 'Alex';
+  UserStats? _stats;
+  bool _statsFailed = false;
+  bool _isOfflineFallback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+    _loadStats();
+  }
+
+  Future<void> _loadUserName() async {
+    final name = await _authService.getUserName();
+    if (name != null && name.trim().isNotEmpty && mounted) {
+      setState(() {
+        _userName = name.trim().split(' ').first;
+      });
+    }
+  }
+
+  /// 1. Immediately renders cached stats.
+  /// 2. Refreshes in background.
+  Future<void> _loadStats({bool isPullToRefresh = false}) async {
+    final cached = await _statsService.getCached();
+    if (cached != null && mounted) {
+      setState(() {
+        _stats = cached;
+      });
+    }
+
+    try {
+      final stats = await _statsService.fetchAndCache();
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _statsFailed = false;
+          _isOfflineFallback = false;
+        });
+      }
+    } on ApiException {
+      if (mounted) {
+        setState(() {
+          if (_stats == null) {
+            _statsFailed = true;
+          } else {
+            _isOfflineFallback = true;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          if (_stats == null) {
+            _statsFailed = true;
+          } else {
+            _isOfflineFallback = true;
+          }
+        });
+      }
+    }
+  }
+
+  /// Formats minutes as hours when there is at least one full hour.
+  String _fmtTime(int minutes) {
+    if (minutes >= 60) {
+      final hours = minutes / 60;
+      return hours.remainder(1) == 0
+          ? '${hours.toStringAsFixed(0)}h'
+          : '${hours.toStringAsFixed(1)}h';
+    }
+    return '${minutes}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FrameScaffold(
+      title: 'CalisthenicTrack',
+      onRefresh: () => _loadStats(isPullToRefresh: true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OfflineBanner(isOfflineFallback: _isOfflineFallback),
+          const SectionLabel('HOY EN TU PROGRESO'),
+          const SizedBox(height: 8),
+          Text(
+            'Vamos a por ello, $_userName.',
+            style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 24),
+          // Streak card
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: AppColors.cardBorder.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.local_fire_department,
+                  color: Colors.orange,
+                  size: 32,
+                ),
+                const SizedBox(width: 14),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '12 DÍAS',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'RACHA ACTUAL (DEMO)',
+                      style: TextStyle(color: AppColors.subtext, fontSize: 10),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  'MEJOR\n18',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: AppColors.subtext,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          const SectionLabel('PLAN DE HOY'),
+          const SizedBox(height: 12),
+          const TrainingCard(
+            title: 'DOMINA TU PESO',
+            subtitle: 'Fuerza de tirón',
+            meta: '04 EJERCICIOS  ·  28 MIN  ·  DEMO',
+          ),
+          const SizedBox(height: 28),
+          const SectionLabel('TU ACTIVIDAD'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: MetricCard(
+                  value: _stats != null ? '${_stats!.totalWorkouts}' : '—',
+                  label: 'SESIONES',
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: MetricCard(value: '12', label: 'RACHA · DEMO'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: MetricCard(
+                  value: _stats != null ? _fmtTime(_stats!.totalMinutes) : '—',
+                  label: 'TIEMPO',
+                ),
+              ),
+            ],
+          ),
+          if (_statsFailed && _stats == null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'No se pudieron cargar tus estadísticas del servidor.',
+              style: TextStyle(color: AppColors.subtext, fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
