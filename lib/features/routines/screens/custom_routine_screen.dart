@@ -3,27 +3,36 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/frame_scaffold.dart';
 import '../../exercises/models/exercise_model.dart';
+import '../../exercises/services/exercise_service.dart';
 import '../../social/models/post_model.dart';
 import 'workout_runner_screen.dart';
+import '../models/custom_routine_model.dart';
 import '../models/routine_detail_model.dart';
+import '../services/custom_routine_service.dart';
 
+/// Everything needed to persist a draft through `/api/user-routines`.
 class CustomRoutineDraft {
-  const CustomRoutineDraft({required this.name, required this.exercises});
+  const CustomRoutineDraft({required this.title, required this.exercises});
 
-  final String name;
-  final List<ExerciseModel> exercises;
+  final String title;
 
-  String get meta => '${exercises.length} ejercicios · rutina personal';
+  /// One entry per exercise: {exerciseId, sets, reps, restSeconds}.
+  final List<Map<String, dynamic>> exercises;
 }
 
+/// Builder for a personalized routine: name + ordered exercises, each with
+/// its own sets/reps. Persists via `CustomRoutineService.create` (button).
 class CustomRoutineBuilderScreen extends StatefulWidget {
   const CustomRoutineBuilderScreen({
     super.key,
     required this.initialExercise,
-    required this.availableExercises,
+    this.availableExercises = const [],
   });
 
   final ExerciseModel initialExercise;
+
+  /// Catalog offered in the "add another" sheet. Falls back to the cached
+  /// catalog when empty, so callers do not need to thread the list around.
   final List<ExerciseModel> availableExercises;
 
   @override
@@ -31,22 +40,61 @@ class CustomRoutineBuilderScreen extends StatefulWidget {
       _CustomRoutineBuilderScreenState();
 }
 
+/// One exercise planned inside the draft with its prescription.
+class _DraftItem {
+  _DraftItem(this.exercise);
+
+  final ExerciseModel exercise;
+  int sets = 3;
+  int reps = 10;
+  int restSeconds = 60;
+
+  String get idKey => '${exercise.id}';
+}
+
 class _CustomRoutineBuilderScreenState
     extends State<CustomRoutineBuilderScreen> {
-  late final TextEditingController _nameController = TextEditingController(
-    text: 'Mi rutina',
-  );
-  late final List<ExerciseModel> _selected = [widget.initialExercise];
+  late final TextEditingController _nameController;
+  final List<_DraftItem> _selected = [];
+  List<ExerciseModel> _catalog = const [];
+  bool _loadingCatalog = false;
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: 'Mi rutina');
+    _selected.add(_DraftItem(widget.initialExercise));
+    _catalog = widget.availableExercises;
+    _loadingCatalog = widget.availableExercises.isEmpty;
+    if (widget.availableExercises.isEmpty) _loadCatalog();
+  }
+
+  /// The whole catalog so the user can mix any exercises, loaded from cache
+  /// and refreshed from the network best-effort.
+  Future<void> _loadCatalog() async {
+    final cached = await ExerciseService().getCached();
+    if (cached.isNotEmpty && mounted) {
+      setState(() {
+        _catalog = cached;
+        _loadingCatalog = false;
+      });
+    }
+    try {
+      final fresh = await ExerciseService().fetchAndCache();
+      if (mounted) {
+        setState(() {
+          _catalog = fresh;
+          _loadingCatalog = false;
+        });
+      }
+    } catch (_) {
+      // The sheet simply shows fewer choices while offline.
+    }
   }
 
   void _addExercise(ExerciseModel exercise) {
-    if (_selected.any((item) => item.id == exercise.id)) return;
-    setState(() => _selected.add(exercise));
+    if (_selected.any((item) => item.idKey == '${exercise.id}')) return;
+    setState(() => _selected.add(_DraftItem(exercise)));
   }
 
   Future<void> _chooseExercise() async {
@@ -54,36 +102,63 @@ class _CustomRoutineBuilderScreenState
       context: context,
       backgroundColor: AppColors.surface,
       builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: widget.availableExercises.map((exercise) {
-            final added = _selected.any((item) => item.id == exercise.id);
-            return ListTile(
-              enabled: !added,
-              leading: Icon(
-                added ? Icons.check : Icons.add_circle_outline,
-                color: added ? AppColors.subtext : AppColors.blue,
+        child: _loadingCatalog && _catalog.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator(color: AppColors.blue)),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: _catalog.map((exercise) {
+                  final added =
+                      _selected.any((item) => item.idKey == '${exercise.id}');
+                  return ListTile(
+                    enabled: !added,
+                    leading: Icon(
+                      added ? Icons.check : Icons.add_circle_outline,
+                      color: added ? AppColors.subtext : AppColors.blue,
+                    ),
+                    title: Text(exercise.name,
+                        style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    subtitle: Text(exercise.category,
+                        style: const TextStyle(fontSize: 11.5)),
+                    onTap: !added
+                        ? () {
+                            _addExercise(exercise);
+                            Navigator.pop(context);
+                          }
+                        : null,
+                  );
+                }).toList(),
               ),
-              title: Text(exercise.name),
-              subtitle: Text(exercise.category),
-              onTap: () {
-                _addExercise(exercise);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        ),
       ),
     );
   }
 
   void _save() {
-    final name = _nameController.text.trim();
-    if (name.isEmpty || _selected.isEmpty) return;
+    final title = _nameController.text.trim();
+    if (title.isEmpty || _selected.isEmpty) return;
     Navigator.pop(
       context,
-      CustomRoutineDraft(name: name, exercises: List.of(_selected)),
+      CustomRoutineDraft(
+        title: title,
+        exercises: _selected
+            // Position comes from the declaration order the backend assigns.
+            .map((item) => <String, dynamic>{
+                  'exerciseId': int.tryParse(item.idKey),
+                  'sets': item.sets.clamp(1, 20),
+                  'reps': item.reps == 0 ? null : item.reps,
+                  'restSeconds': item.restSeconds.clamp(0, 600),
+                })
+            .toList(),
+      ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -99,7 +174,7 @@ class _CustomRoutineBuilderScreenState
           ),
           const SizedBox(height: 8),
           const Text(
-            'Elige varios ejercicios y guárdalos juntos en tu carrusel.',
+            'Elige varios ejercicios, ajusta tus series y guarda todo junto.',
             style: TextStyle(color: AppColors.subtext),
           ),
           const SizedBox(height: 22),
@@ -113,14 +188,15 @@ class _CustomRoutineBuilderScreenState
           ),
           const SizedBox(height: 20),
           ..._selected.asMap().entries.map(
-            (entry) => _SelectedExerciseTile(
-              index: entry.key + 1,
-              exercise: entry.value,
-              onRemove: _selected.length == 1
-                  ? null
-                  : () => setState(() => _selected.removeAt(entry.key)),
-            ),
-          ),
+                (entry) => _DraftTile(
+                  index: entry.key + 1,
+                  item: entry.value,
+                  onChanged: () => setState(() {}),
+                  onRemove: _selected.length == 1
+                      ? null
+                      : () => setState(() => _selected.removeAt(entry.key)),
+                ),
+              ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _chooseExercise,
@@ -145,97 +221,23 @@ class _CustomRoutineBuilderScreenState
   }
 }
 
-class CustomRoutineDetailScreen extends StatelessWidget {
-  const CustomRoutineDetailScreen({super.key, required this.draft});
-
-  final CustomRoutineDraft draft;
-
-  RoutineDetailModel _runnerDetail() => RoutineDetailModel(
-    id: 'local-${draft.name}',
-    title: draft.name,
-    subtitle: 'Rutina creada por ti',
-    category: 'personalizada',
-    level: 'personalizada',
-    durationMin: draft.exercises.length * 8,
-    estimatedCalories: draft.exercises.length * 60,
-    exercises: draft.exercises.asMap().entries.map((entry) {
-      final e = entry.value;
-      return RoutineExerciseItem(
-        id: '${e.id}',
-        name: e.name,
-        imageUrl: e.imageUrl,
-        gifUrl: e.gifUrl,
-        techniqueDescription: e.techniqueDescription,
-        category: e.category,
-        level: e.level,
-        muscles: e.muscles.join(','),
-        position: entry.key + 1,
-        sets: 3,
-        reps: 10,
-        restSeconds: 60,
-      );
-    }).toList(),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    return FrameScaffold(
-      title: draft.name,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Rutina personalizada',
-            style: TextStyle(
-              color: AppColors.blue,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(draft.meta, style: const TextStyle(color: AppColors.subtext)),
-          const SizedBox(height: 20),
-          ...draft.exercises.asMap().entries.map(
-            (entry) => _SelectedExerciseTile(
-              index: entry.key + 1,
-              exercise: entry.value,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: FilledButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => WorkoutRunnerScreen(detail: _runnerDetail()),
-                ),
-              ),
-              child: const Text(
-                'Comenzar rutina',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SelectedExerciseTile extends StatelessWidget {
-  const _SelectedExerciseTile({
+/// Selected exercise row: preview image, name and sets/reps steppers.
+class _DraftTile extends StatelessWidget {
+  const _DraftTile({
     required this.index,
-    required this.exercise,
+    required this.item,
+    required this.onChanged,
     this.onRemove,
   });
 
   final int index;
-  final ExerciseModel exercise;
+  final _DraftItem item;
+  final VoidCallback onChanged;
   final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final image = absoluteUrl(exercise.gifUrl ?? exercise.imageUrl);
+    final image = absoluteUrl(item.exercise.gifUrl ?? item.exercise.imageUrl);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(10),
@@ -244,46 +246,300 @@ class _SelectedExerciseTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.cardBorder),
       ),
-      child: Row(
+      child: Column(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: image == null
-                ? const SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: Icon(Icons.fitness_center, color: AppColors.blue),
-                  )
-                : Image.network(
-                    image,
-                    width: 54,
-                    height: 54,
-                    fit: BoxFit.cover,
-                  ),
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: image != null
+                    ? Image.network(
+                        image,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _placeholder(),
+                      )
+                    : _placeholder(),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$index. ${item.exercise.name}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (onRemove != null)
+                IconButton(onPressed: onRemove, icon: const Icon(Icons.close)),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              '$index. ${exercise.name}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Icon(Icons.repeat, size: 16, color: AppColors.subtext),
+              const SizedBox(width: 4),
+              Text('Series', style: const TextStyle(fontSize: 12, color: AppColors.subtext)),
+              _stepper(
+                '${item.sets}',
+                onMinus: () => onChanged(),
+                onPlus: () => onChanged(),
+                minus: () => item.sets = (item.sets - 1).clamp(1, 20),
+                plus: () => item.sets = (item.sets + 1).clamp(1, 20),
+              ),
+              const SizedBox(width: 14),
+              const Icon(Icons.fitness_center, size: 16, color: AppColors.subtext),
+              const SizedBox(width: 4),
+              const Text('Reps',
+                  style: TextStyle(fontSize: 12, color: AppColors.subtext)),
+              _stepper(
+                '${item.reps}',
+                minus: () => item.reps = (item.reps - 1).clamp(0, 100),
+                plus: () => item.reps = (item.reps + 1).clamp(0, 100),
+                onMinus: onChanged,
+                onPlus: onChanged,
+              ),
+              const Spacer(),
+            ],
           ),
-          if (onRemove != null)
-            IconButton(onPressed: onRemove, icon: const Icon(Icons.close)),
         ],
       ),
     );
   }
+
+  Widget _placeholder() => Container(
+        width: 54,
+        height: 54,
+        color: AppColors.surface,
+        child: const Icon(Icons.fitness_center, color: AppColors.blue, size: 22),
+      );
+
+  Widget _stepper(
+    String value, {
+    required VoidCallback onMinus,
+    required VoidCallback onPlus,
+    required void Function() minus,
+    required void Function() plus,
+  }) {
+    return Row(
+      children: [
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.remove_circle_outline, size: 18),
+          color: AppColors.subtext,
+          onPressed: () {
+            minus();
+            onMinus();
+          },
+        ),
+        Text(value,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.add_circle_outline, size: 18),
+          color: AppColors.blue,
+          onPressed: () {
+            plus();
+            onPlus();
+          },
+        ),
+      ],
+    );
+  }
 }
 
+/// Detail of a persisted custom routine: cache-first detail load from
+/// `/api/user-routines/{id}`, with delete for the owner and direct runner start.
+class CustomRoutineDetailScreen extends StatefulWidget {
+  const CustomRoutineDetailScreen({
+    super.key,
+    required this.routine,
+    this.onDelete,
+  });
+
+  final CustomRoutineModel routine;
+  final Future<void> Function()? onDelete;
+
+  @override
+  State<CustomRoutineDetailScreen> createState() =>
+      _CustomRoutineDetailScreenState();
+}
+
+class _CustomRoutineDetailScreenState extends State<CustomRoutineDetailScreen> {
+  final _customService = CustomRoutineService();
+  RoutineDetailModel? _detail;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final id = widget.routine.id;
+    try {
+      final detail = await _customService.detail(id);
+      if (mounted) {
+        setState(() {
+          _detail = detail;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = _detail;
+    return FrameScaffold(
+      title: detail?.title ?? widget.routine.title,
+      actions: [
+        if (widget.onDelete != null)
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.subtext),
+            tooltip: 'Eliminar rutina',
+            onPressed: _confirmDelete,
+          ),
+      ],
+      child: _loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.blue))
+          : detail == null
+              ? _errorView()
+              : _content(detail),
+    );
+  }
+
+  Widget _errorView() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('No se pudo cargar la rutina.',
+              style: TextStyle(color: AppColors.subtext)),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.blue,
+              side: const BorderSide(color: AppColors.blue),
+            ),
+            onPressed: () {
+              setState(() => _loading = true);
+              _load();
+            },
+            child: const Text('Reintentar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _content(RoutineDetailModel detail) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Rutina personalizada',
+          style: TextStyle(
+            color: AppColors.blue,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${detail.exercises.length} ejercicios · rutina de tu catálogo',
+          style: const TextStyle(color: AppColors.subtext),
+        ),
+        const SizedBox(height: 20),
+        ...detail.exercises.map(
+          (e) => Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${e.position}. ${e.name} — ${e.prescriptionLabel}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                Text('descanso ${e.restLabel}',
+                    style:
+                        const TextStyle(fontSize: 11.5, color: AppColors.subtext)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: FilledButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WorkoutRunnerScreen(detail: detail),
+              ),
+            ),
+            child: const Text(
+              'Comenzar rutina',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Eliminar rutina'),
+            content: Text(
+                '¿Eliminar "${widget.routine.title}"? Tu historial de sesiones no se pierde.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Eliminar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    try {
+      await widget.onDelete?.call();
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No se pudo eliminar la rutina.')));
+      }
+    }
+  }
+}
+
+/// Carousel card for a persisted custom routine summary.
 class CustomRoutineCard extends StatelessWidget {
   const CustomRoutineCard({
     super.key,
-    required this.draft,
+    required this.routine,
     required this.onTap,
   });
 
-  final CustomRoutineDraft draft;
+  final CustomRoutineModel routine;
   final VoidCallback onTap;
 
   @override
@@ -311,13 +567,13 @@ class CustomRoutineCard extends StatelessWidget {
             ),
           ),
           Text(
-            draft.name,
+            routine.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           ),
           Text(
-            draft.meta,
+            routine.meta,
             style: const TextStyle(color: Colors.white70, fontSize: 11),
           ),
         ],

@@ -29,6 +29,10 @@ class ApiConstants {
   static const String routines = '/routines';
   static String routineDetail(String id) => '/routines/$id';
 
+  // Custom routines owned by the logged-in user (mis rutinas)
+  static const String userRoutines = '/user-routines';
+  static String userRoutineDetail(String id) => '/user-routines/$id';
+
   // Wearable sessions (per-exercise workout logging)
   static const String sessionStart = '/wearable-sessions/start';
   static String sessionMetrics(String sessionId) => '/wearable-sessions/$sessionId/metrics';
@@ -54,6 +58,8 @@ class ApiConstants {
   static const String cacheUserProfile = 'cache.user_profile';
   static const String cacheRoutines = 'cache.routines';
   static String cacheRoutineDetail(String id) => 'cache.routine.$id';
+  static const String cacheUserRoutines = 'cache.user_routines';
+  static String cacheUserRoutineDetail(String id) => 'cache.user_routine.$id';
 
   // Request timeout
   static const Duration requestTimeout = Duration(seconds: 12);

@@ -10,7 +10,9 @@ import '../../exercises/models/exercise_model.dart';
 import '../../exercises/services/exercise_service.dart';
 import '../../exercises/screens/exercise_detail_screen.dart';
 import '../models/routine_summary_model.dart';
+import '../models/custom_routine_model.dart';
 import '../services/routine_service.dart';
+import '../services/custom_routine_service.dart';
 import 'routine_detail_screen.dart';
 import 'custom_routine_screen.dart';
 
@@ -26,10 +28,11 @@ class RoutinesScreen extends StatefulWidget {
 class _RoutinesScreenState extends State<RoutinesScreen> {
   final _exerciseService = ExerciseService();
   final _routineService = RoutineService();
+  final _customService = CustomRoutineService();
   String _selectedCategory = 'Todas';
   List<ExerciseModel> _exercises = const [];
   List<RoutineSummaryModel> _routines = const [];
-  CustomRoutineDraft? _customRoutine;
+  List<CustomRoutineModel> _customRoutines = const [];
   bool _loading = false;
   bool _failed = false;
   bool _isOfflineFallback = false;
@@ -39,6 +42,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     super.initState();
     _loadExercises();
     _loadRoutines();
+    _loadCustomRoutines();
   }
 
   /// Cached-first routines, then a fresh copy from the network.
@@ -59,26 +63,55 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     );
   }
 
+  /// Loads the user's custom routines: cached-first, then fresh data.
+  Future<void> _loadCustomRoutines() async {
+    final cached = await _customService.getCached();
+    if (cached.isNotEmpty && mounted) {
+      setState(() => _customRoutines = cached);
+    }
+    try {
+      final routines = await _customService.fetchAndCache();
+      if (mounted) setState(() => _customRoutines = routines);
+    } catch (_) {
+      // Cards fall back to whatever cache holds.
+    }
+  }
+
+  /// Builder flow: 'Agregar a mi rutina' from a specific exercise.
   Future<void> _openRoutineBuilder(ExerciseModel exercise) async {
-    final draft = await Navigator.of(context).push<CustomRoutineDraft>(
-      MaterialPageRoute<CustomRoutineDraft>(
-        builder: (_) => CustomRoutineBuilderScreen(
-          initialExercise: exercise,
-          availableExercises: _exercises,
+    final draft = await Navigator.of(context)
+        .push<CustomRoutineDraft>(MaterialPageRoute<CustomRoutineDraft>(
+      builder: (_) => CustomRoutineBuilderScreen(
+        initialExercise: exercise,
+        availableExercises: _exercises,
+      ),
+    ));
+    if (draft == null || !mounted) return;
+    try {
+      await _customService.create(title: draft.title, exercises: draft.exercises);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Rutina guardada en mis rutinas.')));
+      }
+      await _loadCustomRoutines();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('No se pudo guardar la rutina. Inténtalo de nuevo.')));
+      }
+    }
+  }
+
+  Future<void> _openCustomRoutine(CustomRoutineModel routine) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomRoutineDetailScreen(
+          routine: routine,
+          onDelete: () => _customService.delete(routine.id),
         ),
       ),
     );
-    if (draft != null && mounted) setState(() => _customRoutine = draft);
-  }
-
-  void _openCustomRoutine() {
-    final draft = _customRoutine;
-    if (draft == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CustomRoutineDetailScreen(draft: draft),
-      ),
-    );
+    _loadCustomRoutines();
   }
 
   /// 1. Immediately renders cached exercises (0 delay).
@@ -163,8 +196,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
     return FrameScaffold(
       title: 'Rutinas',
-      onRefresh: () =>
-          Future.wait([_loadExercises(isPullToRefresh: true), _loadRoutines()]),
+      onRefresh: () => Future.wait(
+          [_loadExercises(isPullToRefresh: true), _loadRoutines(), _loadCustomRoutines()]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -183,18 +216,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(bottom: 6),
-                itemCount: _routines.length + (_customRoutine == null ? 0 : 1),
+                itemCount: _customRoutines.length + _routines.length,
                 separatorBuilder: (BuildContext _, int _) =>
                     const SizedBox(width: 12),
                 itemBuilder: (_, i) {
-                  if (_customRoutine != null && i == 0) {
+                  if (i < _customRoutines.length) {
+                    final custom = _customRoutines[i];
                     return CustomRoutineCard(
-                      draft: _customRoutine!,
-                      onTap: _openCustomRoutine,
+                      routine: custom,
+                      onTap: () => _openCustomRoutine(custom),
                     );
                   }
-                  final routineIndex = _customRoutine == null ? i : i - 1;
-                  final routine = _routines[routineIndex];
+                  final routine = _routines[i - _customRoutines.length];
                   return _RoutineCard(
                     routine: routine,
                     onTap: () => _openRoutine(routine),

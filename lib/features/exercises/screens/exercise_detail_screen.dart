@@ -95,7 +95,7 @@ class ExerciseDetailScreen extends StatelessWidget {
                   MaterialPageRoute<void>(
                     builder: (_) => CustomRoutineBuilderScreen(
                       initialExercise: exercise,
-                      availableExercises: [exercise],
+                      availableExercises: const [],
                     ),
                   ),
                 ),
