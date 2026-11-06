@@ -400,7 +400,7 @@ class _WorkoutRunnerScreenState extends State<WorkoutRunnerScreen> {
           child: media != null
               ? Image.network(
                   media,
-                  height: 180,
+                  height: 280,
                   width: double.infinity,
                   fit: BoxFit.cover,
                   errorBuilder: (_, _, _) => _imagePlaceholder(),
@@ -456,7 +456,7 @@ class _WorkoutRunnerScreenState extends State<WorkoutRunnerScreen> {
   }
 
   Widget _imagePlaceholder() => Container(
-        height: 180,
+        height: 280,
         width: double.infinity,
         color: AppColors.card,
         alignment: Alignment.center,
