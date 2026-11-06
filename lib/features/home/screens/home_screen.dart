@@ -7,6 +7,9 @@ import '../../../shared/widgets/metric_card.dart';
 import '../../../shared/widgets/offline_banner.dart';
 import '../../../shared/widgets/section_label.dart';
 import '../../../shared/widgets/training_card.dart';
+import '../../exercises/models/exercise_model.dart';
+import '../../exercises/services/exercise_service.dart';
+import '../../exercises/screens/exercise_detail_screen.dart';
 import '../../auth/services/auth_service.dart';
 import '../../stats/models/stats_model.dart';
 import '../../stats/services/stats_service.dart';
@@ -21,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   final _statsService = StatsService();
+  final _exerciseService = ExerciseService();
+  ExerciseModel? _featuredExercise;
   String _userName = 'Alex';
   UserStats? _stats;
   bool _statsFailed = false;
@@ -31,6 +36,22 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadUserName();
     _loadStats();
+    _loadFeaturedExercise();
+  }
+
+  Future<void> _loadFeaturedExercise() async {
+    final cached = await _exerciseService.getCached();
+    if (cached.isNotEmpty && mounted) {
+      setState(() => _featuredExercise = cached.first);
+    }
+    try {
+      final exercises = await _exerciseService.fetchAndCache();
+      if (mounted && exercises.isNotEmpty) {
+        setState(() => _featuredExercise = exercises.first);
+      }
+    } catch (_) {
+      // The home card remains visible even when the catalog is offline.
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -85,7 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Formats minutes as hours when there is at least one full hour.
-  String _fmtTime(int minutes) {    if (minutes >= 60) {
+  String _fmtTime(int minutes) {
+    if (minutes >= 60) {
       final hours = minutes / 60;
       return hours.remainder(1) == 0
           ? '${hours.toStringAsFixed(0)}h'
@@ -162,10 +184,19 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 28),
           const SectionLabel('PLAN DE HOY'),
           const SizedBox(height: 12),
-          const TrainingCard(
+          TrainingCard(
             title: 'DOMINA TU PESO',
             subtitle: 'Fuerza de tirón',
             meta: '04 EJERCICIOS  ·  28 MIN  ·  DEMO',
+            onTap: () {
+              final exercise = _featuredExercise;
+              if (exercise == null) return;
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ExerciseDetailScreen(exercise: exercise),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 28),
           const SectionLabel('TU ACTIVIDAD'),
@@ -228,10 +259,7 @@ class _MotivationBanner extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.bottomLeft,
                   end: Alignment.topRight,
-                  colors: [
-                    Color(0xB307101B),
-                    Color(0x1407101B),
-                  ],
+                  colors: [Color(0xB307101B), Color(0x1407101B)],
                 ),
               ),
             ),

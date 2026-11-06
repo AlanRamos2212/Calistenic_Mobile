@@ -4,11 +4,17 @@ import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/frame_scaffold.dart';
 import '../../social/models/post_model.dart';
 import '../models/exercise_model.dart';
+import '../../routines/screens/custom_routine_screen.dart';
 
 class ExerciseDetailScreen extends StatelessWidget {
-  const ExerciseDetailScreen({super.key, required this.exercise});
+  const ExerciseDetailScreen({
+    super.key,
+    required this.exercise,
+    this.onAddToRoutine,
+  });
 
   final ExerciseModel exercise;
+  final VoidCallback? onAddToRoutine;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +80,31 @@ class ExerciseDetailScreen extends StatelessWidget {
               style: const TextStyle(color: Colors.white, height: 1.45),
             ),
           ],
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.blue,
+              minimumSize: const Size.fromHeight(50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed:
+                onAddToRoutine ??
+                () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CustomRoutineBuilderScreen(
+                      initialExercise: exercise,
+                      availableExercises: [exercise],
+                    ),
+                  ),
+                ),
+            icon: const Icon(Icons.playlist_add),
+            label: const Text(
+              'Agregar a mi rutina',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
         ],
       ),
     );

@@ -12,6 +12,7 @@ import '../../exercises/screens/exercise_detail_screen.dart';
 import '../models/routine_summary_model.dart';
 import '../services/routine_service.dart';
 import 'routine_detail_screen.dart';
+import 'custom_routine_screen.dart';
 
 /// Shows curated routines (`GET /api/routines`) plus the exercise catalog
 /// from `GET /api/exercises`, both with Offline-First support.
@@ -28,6 +29,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   String _selectedCategory = 'Todas';
   List<ExerciseModel> _exercises = const [];
   List<RoutineSummaryModel> _routines = const [];
+  CustomRoutineDraft? _customRoutine;
   bool _loading = false;
   bool _failed = false;
   bool _isOfflineFallback = false;
@@ -53,6 +55,28 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RoutineDetailScreen(routine: routine),
+      ),
+    );
+  }
+
+  Future<void> _openRoutineBuilder(ExerciseModel exercise) async {
+    final draft = await Navigator.of(context).push<CustomRoutineDraft>(
+      MaterialPageRoute<CustomRoutineDraft>(
+        builder: (_) => CustomRoutineBuilderScreen(
+          initialExercise: exercise,
+          availableExercises: _exercises,
+        ),
+      ),
+    );
+    if (draft != null && mounted) setState(() => _customRoutine = draft);
+  }
+
+  void _openCustomRoutine() {
+    final draft = _customRoutine;
+    if (draft == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomRoutineDetailScreen(draft: draft),
       ),
     );
   }
@@ -159,11 +183,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(bottom: 6),
-                itemCount: _routines.length,
+                itemCount: _routines.length + (_customRoutine == null ? 0 : 1),
                 separatorBuilder: (BuildContext _, int _) =>
                     const SizedBox(width: 12),
                 itemBuilder: (_, i) {
-                  final routine = _routines[i];
+                  if (_customRoutine != null && i == 0) {
+                    return CustomRoutineCard(
+                      draft: _customRoutine!,
+                      onTap: _openCustomRoutine,
+                    );
+                  }
+                  final routineIndex = _customRoutine == null ? i : i - 1;
+                  final routine = _routines[routineIndex];
                   return _RoutineCard(
                     routine: routine,
                     onTap: () => _openRoutine(routine),
@@ -232,7 +263,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   meta: _metaFor(exercise),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => ExerciseDetailScreen(exercise: exercise),
+                      builder: (_) => ExerciseDetailScreen(
+                        exercise: exercise,
+                        onAddToRoutine: () => _openRoutineBuilder(exercise),
+                      ),
                     ),
                   ),
                 ),
