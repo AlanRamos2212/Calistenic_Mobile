@@ -21,6 +21,16 @@ class FrameScaffold extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverAppBar(
+          leadingWidth: 52,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 14, top: 8, bottom: 8),
+            child: Image.asset(
+              'assets/images/logo1.png',
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) =>
+                  const Icon(Icons.bolt, color: AppColors.blue),
+            ),
+          ),
           title: Text(
             title,
             style: const TextStyle(fontWeight: FontWeight.w900),
