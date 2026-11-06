@@ -85,8 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Formats minutes as hours when there is at least one full hour.
-  String _fmtTime(int minutes) {
-    if (minutes >= 60) {
+  String _fmtTime(int minutes) {    if (minutes >= 60) {
       final hours = minutes / 60;
       return hours.remainder(1) == 0
           ? '${hours.toStringAsFixed(0)}h'
@@ -110,6 +109,9 @@ class _HomeScreenState extends State<HomeScreen> {
             'Vamos a por ello, $_userName.',
             style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
           ),
+          const SizedBox(height: 16),
+          // Motivational hero banner shown when entering the app.
+          const _MotivationBanner(),
           const SizedBox(height: 24),
           // Streak card
           Container(
@@ -197,6 +199,57 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Hero image bundled with the app ("Home_inicio"): sets the training mood
+/// the moment the app opens, with a motivational caption over a gradient.
+class _MotivationBanner extends StatelessWidget {
+  const _MotivationBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: AspectRatio(
+        aspectRatio: 2.6,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/home_inicio.png',
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                  colors: [
+                    Color(0xB307101B),
+                    Color(0x1407101B),
+                  ],
+                ),
+              ),
+            ),
+            const Positioned(
+              left: 14,
+              bottom: 12,
+              child: Text(
+                'Cada rep te acerca a tu mejor versión.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  shadows: [Shadow(blurRadius: 8, color: Color(0xCC07101B))],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
