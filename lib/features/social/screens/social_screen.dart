@@ -102,6 +102,9 @@ class _SocialScreenState extends State<SocialScreen> {
       return;
     }
     setState(() => _publishing = true);
+    // Hides the keyboard so the confirmation (snackbar) and the inserted post
+    // are never covered behind the IME — the user always gets feedback.
+    FocusScope.of(context).unfocus();
     try {
       final created = await _socialService.create(content, imageFile: _pickedImage);
       if (mounted) {
@@ -111,6 +114,7 @@ class _SocialScreenState extends State<SocialScreen> {
           _pickedImage = null;
         });
         _composerController.clear();
+        _showSnackBar('Post publicado.');
       }
     } on ApiException catch (e) {
       if (mounted) setState(() => _publishing = false);
