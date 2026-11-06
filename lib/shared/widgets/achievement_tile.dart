@@ -18,7 +18,7 @@ class AchievementTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 138,
+      height: 154,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: unlocked ? AppColors.card : AppColors.lockedCardBg,
@@ -48,8 +48,10 @@ class AchievementTile extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w900,
               color: unlocked ? Colors.white : AppColors.subtext,
             ),

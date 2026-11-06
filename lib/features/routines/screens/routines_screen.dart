@@ -8,6 +8,7 @@ import '../../../shared/widgets/section_label.dart';
 import '../../../shared/widgets/training_card.dart';
 import '../../exercises/models/exercise_model.dart';
 import '../../exercises/services/exercise_service.dart';
+import '../../exercises/screens/exercise_detail_screen.dart';
 import '../models/routine_summary_model.dart';
 import '../services/routine_service.dart';
 import 'routine_detail_screen.dart';
@@ -49,9 +50,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 
   void _openRoutine(RoutineSummaryModel routine) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => RoutineDetailScreen(routine: routine),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => RoutineDetailScreen(routine: routine),
+      ),
+    );
   }
 
   /// 1. Immediately renders cached exercises (0 delay).
@@ -113,12 +116,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     return names;
   }
 
-  List<ExerciseModel> get _filtered =>
-      _selectedCategory == 'Todas'
-          ? _exercises
-          : _exercises
-              .where((e) => e.category == _selectedCategory)
-              .toList();
+  List<ExerciseModel> get _filtered => _selectedCategory == 'Todas'
+      ? _exercises
+      : _exercises.where((e) => e.category == _selectedCategory).toList();
 
   String _metaFor(ExerciseModel e) {
     final metaParts = <String>[];
@@ -139,10 +139,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
 
     return FrameScaffold(
       title: 'Rutinas',
-      onRefresh: () => Future.wait([
-            _loadExercises(isPullToRefresh: true),
-            _loadRoutines(),
-          ]),
+      onRefresh: () =>
+          Future.wait([_loadExercises(isPullToRefresh: true), _loadRoutines()]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -162,7 +160,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(bottom: 6),
                 itemCount: _routines.length,
-                separatorBuilder: (BuildContext _, int _) => const SizedBox(width: 12),
+                separatorBuilder: (BuildContext _, int _) =>
+                    const SizedBox(width: 12),
                 itemBuilder: (_, i) {
                   final routine = _routines[i];
                   return _RoutineCard(
@@ -231,6 +230,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   title: exercise.name.toUpperCase(),
                   subtitle: exercise.category,
                   meta: _metaFor(exercise),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ExerciseDetailScreen(exercise: exercise),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -267,7 +271,10 @@ class _RoutineCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
             ),
             const SizedBox(height: 4),
             Expanded(
@@ -276,7 +283,10 @@ class _RoutineCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    color: AppColors.subtext, fontSize: 11.5, height: 1.25),
+                  color: AppColors.subtext,
+                  fontSize: 11.5,
+                  height: 1.25,
+                ),
               ),
             ),
             const SizedBox(height: 6),
@@ -285,9 +295,10 @@ class _RoutineCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700),
+                color: AppColors.blue,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

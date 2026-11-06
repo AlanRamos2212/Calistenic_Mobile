@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../shared/widgets/offline_banner.dart';
+import '../../social/models/post_model.dart';
 import '../models/routine_detail_model.dart';
 import '../models/routine_summary_model.dart';
 import '../services/routine_service.dart';
@@ -72,9 +73,11 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   void _startWorkout() {
     final detail = _detail;
     if (detail == null || detail.exercises.isEmpty) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => WorkoutRunnerScreen(detail: detail),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => WorkoutRunnerScreen(detail: detail),
+      ),
+    );
   }
 
   @override
@@ -85,14 +88,18 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         foregroundColor: Colors.white,
-        title: Text(detail?.title ?? widget.routine.title,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+        title: Text(
+          detail?.title ?? widget.routine.title,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+        ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.blue))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.blue),
+            )
           : _failed || detail == null
-              ? _errorView()
-              : _content(detail),
+          ? _errorView()
+          : _content(detail),
       bottomNavigationBar: detail == null ? null : _startBar(detail),
     );
   }
@@ -102,8 +109,10 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('No se pudo cargar la rutina.',
-              style: TextStyle(color: AppColors.subtext)),
+          const Text(
+            'No se pudo cargar la rutina.',
+            style: TextStyle(color: AppColors.subtext),
+          ),
           const SizedBox(height: 12),
           OutlinedButton(
             style: OutlinedButton.styleFrom(
@@ -134,15 +143,18 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
           OfflineBanner(isOfflineFallback: _isOffline),
-          Text(detail.subtitle,
-              style: const TextStyle(color: AppColors.subtext, fontSize: 14)),
+          Text(
+            detail.subtitle,
+            style: const TextStyle(color: AppColors.subtext, fontSize: 14),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               _chip(detail.level.toUpperCase()),
-              if (detail.durationMin != null) _chip('${detail.durationMin} MIN'),
+              if (detail.durationMin != null)
+                _chip('${detail.durationMin} MIN'),
               if (detail.estimatedCalories != null)
                 _chip('~${detail.estimatedCalories} KCAL'),
               _chip('${detail.exercises.length} EJERCICIOS'),
@@ -166,13 +178,16 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       child: Text(
         text,
         style: const TextStyle(
-            fontSize: 11, color: AppColors.blue, fontWeight: FontWeight.w700),
+          fontSize: 11,
+          color: AppColors.blue,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 
   Widget _exerciseCard(RoutineExerciseItem e) {
-    final gif = e.gifUrl ?? e.imageUrl;
+    final gif = absoluteUrl(e.gifUrl ?? e.imageUrl);
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(14),
@@ -207,23 +222,29 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                     Text(
                       '${e.position}. ${e.name}',
                       style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
-                          color: Colors.white),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: Colors.white,
+                      ),
                     ),
                     if (e.muscles != null) ...[
                       const SizedBox(height: 3),
-                      Text(e.muscles!,
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.subtext)),
+                      Text(
+                        e.muscles!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.subtext,
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 6),
                     Text(
                       '${e.prescriptionLabel} · descanso ${e.restLabel}',
                       style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.blue,
-                          fontWeight: FontWeight.w700),
+                        fontSize: 12,
+                        color: AppColors.blue,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),
@@ -233,17 +254,23 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
           if (e.techniqueDescription != null &&
               e.techniqueDescription!.trim().isNotEmpty) ...[
             const Divider(height: 22, color: AppColors.cardBorder),
-            const Text('TÉCNICA',
-                style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.subtext,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1)),
+            const Text(
+              'TÉCNICA',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.subtext,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               e.techniqueDescription!,
-              style:
-                  const TextStyle(fontSize: 12.5, height: 1.35, color: Colors.white),
+              style: const TextStyle(
+                fontSize: 12.5,
+                height: 1.35,
+                color: Colors.white,
+              ),
             ),
           ],
         ],
@@ -257,11 +284,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       height: 74,
       color: AppColors.surface,
       alignment: Alignment.center,
-      child: Text('$position',
-          style: const TextStyle(
-              color: AppColors.subtext,
-              fontWeight: FontWeight.w900,
-              fontSize: 20)),
+      child: Text(
+        '$position',
+        style: const TextStyle(
+          color: AppColors.subtext,
+          fontWeight: FontWeight.w900,
+          fontSize: 20,
+        ),
+      ),
     );
   }
 
@@ -276,12 +306,17 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             style: FilledButton.styleFrom(
               backgroundColor: busy ? AppColors.card : AppColors.blue,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: busy ? null : _startWorkout,
-            child: const Text('Comenzar rutina',
-                style: TextStyle(
-                    fontWeight: FontWeight.w900, color: Colors.white)),
+            child: const Text(
+              'Comenzar rutina',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
           ),
         ),
       ),
