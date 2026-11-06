@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../social/models/post_model.dart';
 import '../models/routine_detail_model.dart';
 import '../services/workout_service.dart';
 
@@ -388,9 +389,25 @@ class _WorkoutRunnerScreenState extends State<WorkoutRunnerScreen> {
   int _windowsTotal() => _current.sets;
 
   Widget _workoutView(int setsTotal) {
+    final item = _current;
+    final media = absoluteUrl(item.gifUrl ?? item.imageUrl);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Big reference image of the exercise being performed.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: media != null
+              ? Image.network(
+                  media,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _imagePlaceholder(),
+                )
+              : _imagePlaceholder(),
+        ),
+        const SizedBox(height: 14),
         Text(_clockLabel(),
             style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.85),
@@ -437,6 +454,14 @@ class _WorkoutRunnerScreenState extends State<WorkoutRunnerScreen> {
         ? 'Mantén la posición (isométrico)'
         : '${item.reps} repeticiones por serie';
   }
+
+  Widget _imagePlaceholder() => Container(
+        height: 180,
+        width: double.infinity,
+        color: AppColors.card,
+        alignment: Alignment.center,
+        child: const Icon(Icons.fitness_center, color: AppColors.blue, size: 44),
+      );
 
   Widget _restView(RoutineExerciseItem? nextItem) {
     return Column(
