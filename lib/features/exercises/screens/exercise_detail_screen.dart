@@ -21,8 +21,10 @@ class ExerciseDetailScreen extends StatelessWidget {
     final mediaUrl = absoluteUrl(exercise.gifUrl ?? exercise.imageUrl);
     return FrameScaffold(
       title: 'Ejercicio',
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      // Column (NOT ListView): FrameScaffold already scrolls via CustomScrollView
+      // and a nested vertical viewport crashes with unbounded height.
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             exercise.name,

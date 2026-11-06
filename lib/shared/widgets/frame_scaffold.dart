@@ -60,6 +60,12 @@ class FrameScaffold extends StatelessWidget {
       );
     }
 
-    return SafeArea(child: scrollView);
+    // Material: pushed routes (MaterialPageRoute) wrap pages in a Material, but
+    // tabs inside a Scaffold need the color anyway; providing it here gives
+    // TextField/InkWell a valid Material ancestor and the intended background.
+    return Material(
+      color: AppColors.bg,
+      child: SafeArea(child: scrollView),
+    );
   }
 }
