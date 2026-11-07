@@ -15,6 +15,7 @@ import '../../stats/models/stats_model.dart';
 import '../../stats/services/stats_service.dart';
 import '../models/user_profile_model.dart';
 import '../services/profile_service.dart';
+import '../../support/screens/support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -427,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.watch_outlined,
             title: 'Wearable',
             subtitle: 'Sincronización · Próximamente',
-            trailing: Icons.help_outline,
+            trailing: Icons.chevron_right,
             color: AppColors.blue,
           ),
           _buildTile(
@@ -435,6 +436,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             title: 'Preferencias',
             trailing: Icons.chevron_right,
             color: AppColors.subtext,
+          ),
+          _buildTile(
+            icon: Icons.help_outline,
+            title: 'Soporte técnico',
+            subtitle: 'Reportar un bug',
+            trailing: Icons.chevron_right,
+            color: AppColors.blue,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SupportScreen()),
+            ),
           ),
 
           const SizedBox(height: 24),
@@ -533,6 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? subtitle,
     required IconData trailing,
     required Color color,
+    VoidCallback? onTap,
   }) =>
       ListTile(
         leading: Icon(icon, color: color),
@@ -541,6 +553,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? Text(subtitle, style: const TextStyle(color: AppColors.subtext))
             : null,
         trailing: Icon(trailing, color: AppColors.subtext),
+        onTap: onTap,
       );
 }
 
