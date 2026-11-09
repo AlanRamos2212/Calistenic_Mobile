@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../features/auth/services/auth_service.dart';
 import '../../../shared/widgets/frame_scaffold.dart';
@@ -190,11 +192,34 @@ class _SupportScreenState extends State<SupportScreen> {
           const Text('Mis reportes', style: TextStyle(fontWeight: FontWeight.bold)),
           if (_mine.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Sin reportes todavía.')),
           for (final r in _mine)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('#${r.id} ${r.title}'),
-              subtitle: Text(r.createdAt),
-              trailing: Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+            Card(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('#${r.id} ${r.title}'),
+                subtitle: Text(r.createdAt),
+                trailing: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+                    if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: r.imageUrl!,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
+                          errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
 
           // ── Panel ADMIN (solo si rol = ADMIN) ────────────────────────
@@ -222,27 +247,44 @@ class _SupportScreenState extends State<SupportScreen> {
               const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: CircularProgressIndicator()),
             if (_all.isEmpty && !_loadingAll) const Text('Sin casos todavía.'),
             for (final r in _all)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('#${r.id} ${r.title}'),
-                subtitle: Text('${r.userName ?? 'Usuario'} · ${r.createdAt}'),
-                trailing: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      initialValue: r.status,
-                      decoration: const InputDecoration(labelText: 'Estado'),
-                      items: const [
-                        DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
-                        DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
-                        DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+              Card(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('#${r.id} ${r.title}'),
+                  subtitle: Text('${r.userName ?? 'Usuario'} · ${r.createdAt}'),
+                  trailing: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+                      if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: r.imageUrl!,
+                            width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
+                            errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                          ),
+                        ),
                       ],
-                      onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
-                    ),
-                  ],
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        initialValue: r.status,
+                        decoration: const InputDecoration(labelText: 'Estado'),
+                        items: const [
+                          DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
+                          DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+                          DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+                        ],
+                        onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
