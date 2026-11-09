@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../features/auth/services/auth_service.dart';
 import '../../../shared/widgets/frame_scaffold.dart';
 import '../services/support_service.dart';
 
@@ -16,16 +17,22 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   final _service = SupportService();
+  final _auth = AuthService();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String _category = 'OTRO';
   File? _image;
   bool _sending = false;
+  bool _isAdmin = false;
   List<SupportReport> _mine = [];
+  List<SupportReport> _all = [];
+  String _adminFilter = '';
+  bool _loadingAll = false;
 
   @override
   void initState() {
     super.initState();
+    _checkRole();
     _refresh();
   }
 
@@ -36,12 +43,35 @@ class _SupportScreenState extends State<SupportScreen> {
     super.dispose();
   }
 
+  Future<void> _checkRole() async {
+    try {
+      final role = await _auth.getUserRole();
+      if (mounted) setState(() => _isAdmin == true ? _isAdmin : role == 'ADMIN');
+    } catch (_) {
+      // best effort
+    }
+  }
+
   Future<void> _refresh() async {
     try {
       final list = await _service.mine();
       if (mounted) setState(() => _mine = list);
     } on ApiException {
       // best effort: the form stays usable
+    }
+    if (_isAdmin) await _loadAll();
+  }
+
+  Future<void> _loadAll() async {
+    if (!mounted) return;
+    setState(() => _loadingAll = true);
+    try {
+      final list = await _service.all(status: _adminFilter.isEmpty ? null : _adminFilter);
+      if (mounted) setState(() => _all = list);
+    } on ApiException {
+      // best effort
+    } finally {
+      if (mounted) setState(() => _loadingAll = false);
     }
   }
 
@@ -89,6 +119,18 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
+  Future<void> _changeStatus(int id, String status) async {
+    try {
+      await _service.updateStatus(id, status);
+      _snack('Caso #$id → $status.', ok: true);
+      _loadAll();
+    } on ApiException catch (e) {
+      _snack(e.message, ok: false);
+    } catch (e) {
+      _snack('No se pudo actualizar el caso: $e', ok: false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FrameScaffold(
@@ -98,6 +140,7 @@ class _SupportScreenState extends State<SupportScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // ── Form: reportar bug (usuario) ─────────────────────────────
           const Padding(
             padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
             child: Text('Reporta un bug: queda guardado en la BD (Práctica 7).'),
@@ -142,6 +185,8 @@ class _SupportScreenState extends State<SupportScreen> {
             ),
           ),
           const Divider(),
+
+          // ── Mis reportes (usuario) ───────────────────────────────────
           const Text('Mis reportes', style: TextStyle(fontWeight: FontWeight.bold)),
           if (_mine.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Sin reportes todavía.')),
           for (final r in _mine)
@@ -151,6 +196,56 @@ class _SupportScreenState extends State<SupportScreen> {
               subtitle: Text(r.createdAt),
               trailing: Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
             ),
+
+          // ── Panel ADMIN (solo si rol = ADMIN) ────────────────────────
+          if (_isAdmin) ...[
+            const Divider(),
+            const Text('Panel ADMIN - Todos los casos', style: TextStyle(fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: DropdownButtonFormField<String>(
+                value: _adminFilter.isEmpty ? null : _adminFilter,
+                decoration: const InputDecoration(labelText: 'Filtrar por estado'),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Todos')),
+                  DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
+                  DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+                  DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+                ],
+                onChanged: (v) {
+                  setState(() => _adminFilter = v ?? '');
+                  _loadAll();
+                },
+              ),
+            ),
+            if (_loadingAll)
+              const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: CircularProgressIndicator()),
+            if (_all.isEmpty && !_loadingAll) const Text('Sin casos todavía.'),
+            for (final r in _all)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('#${r.id} ${r.title}'),
+                subtitle: Text('${r.userName ?? 'Usuario'} · ${r.createdAt}'),
+                trailing: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: r.status,
+                      decoration: const InputDecoration(labelText: 'Estado'),
+                      items: const [
+                        DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
+                        DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+                        DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+                      ],
+                      onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ],
       ),
     );
