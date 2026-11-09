@@ -30,6 +30,7 @@ class _SupportScreenState extends State<SupportScreen> {
   List<SupportReport> _all = [];
   String _adminFilter = '';
   bool _loadingAll = false;
+  bool _deleting = false;
 
   @override
   void initState() {
@@ -71,7 +72,8 @@ class _SupportScreenState extends State<SupportScreen> {
     if (!mounted) return;
     setState(() => _loadingAll = true);
     try {
-      final list = await _service.all(status: _adminFilter.isEmpty ? null : _adminFilter);
+      final list =
+          await _service.all(status: _adminFilter.isEmpty ? null : _adminFilter);
       if (mounted) setState(() => _all = list);
     } on ApiException {
       // best effort
@@ -124,16 +126,75 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
-  Future<void> _changeStatus(int id, String status) async {
+  Future<void> _deleteReport(int id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar reporte'),
+        content: const Text(
+          '¿Estás seguro de eliminar este caso? No se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!mounted) return;
+    setState(() => _deleting = true);
     try {
-      await _service.updateStatus(id, status);
-      _snack('Caso #$id → $status.', ok: true);
+      await _service.delete(id);
+      _snack('Caso #$id eliminado.', ok: true);
       _loadAll();
     } on ApiException catch (e) {
       _snack(e.message, ok: false);
     } catch (e) {
-      _snack('No se pudo actualizar el caso: $e', ok: false);
+      _snack('No se pudo eliminar el caso: $e', ok: false);
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
+  }
+
+  void _showImageDialog(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: double.infinity,
+                height: 300,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  width: double.infinity,
+                  height: 300,
+                  color: Colors.grey.shade200,
+                  child: const Center(
+                      child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.broken_image, size: 64),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Color _statusColor(String status) {
@@ -157,7 +218,8 @@ class _SupportScreenState extends State<SupportScreen> {
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
-          child: Text('Reporta un bug: queda guardado en la BD (Práctica 7).'),
+          child: Text(
+              'Reporta un bug: queda guardado en la BD (Práctica 7).'),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
@@ -188,7 +250,8 @@ class _SupportScreenState extends State<SupportScreen> {
             controller: _descCtrl,
             maxLength: 4000,
             maxLines: 4,
-            decoration: const InputDecoration(labelText: 'Descripción (pasos para reproducirlo)'),
+            decoration: const InputDecoration(
+                labelText: 'Descripción (pasos para reproducirlo)'),
           ),
         ),
         Padding(
@@ -196,7 +259,9 @@ class _SupportScreenState extends State<SupportScreen> {
           child: OutlinedButton.icon(
             onPressed: _pick,
             icon: const Icon(Icons.photo),
-            label: Text(_image == null ? 'Adjuntar captura (opcional)' : 'Captura lista ✓'),
+            label: Text(_image == null
+                ? 'Adjuntar captura (opcional)'
+                : 'Captura lista ✓'),
           ),
         ),
         Padding(
@@ -204,13 +269,21 @@ class _SupportScreenState extends State<SupportScreen> {
           child: FilledButton(
             onPressed: _sending ? null : _send,
             child: _sending
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2))
                 : const Text('Enviar reporte'),
           ),
         ),
         const Divider(),
-        const Text('Mis reportes', style: TextStyle(fontWeight: FontWeight.bold)),
-        if (_mine.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Sin reportes todavía.')),
+        const Text('Mis reportes',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        if (_mine.isEmpty)
+          const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Sin reportes todavía.')),
         for (final r in _mine)
           Card(
             margin: const EdgeInsets.symmetric(vertical: 6),
@@ -222,7 +295,9 @@ class _SupportScreenState extends State<SupportScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+                  Chip(
+                      label: Text(r.status,
+                          style: const TextStyle(fontSize: 10))),
                   if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     ClipRRect(
@@ -232,8 +307,12 @@ class _SupportScreenState extends State<SupportScreen> {
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
-                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                        placeholder: (context, url) => Container(
+                            width: 60, height: 60,
+                            color: AppColors.subtext
+                                .withValues(alpha: 0.1)),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.broken_image, size: 32),
                       ),
                     ),
                   ],
@@ -251,7 +330,8 @@ class _SupportScreenState extends State<SupportScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Panel de Soporte - ADMIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const Text('Panel de Soporte - ADMIN',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -261,7 +341,8 @@ class _SupportScreenState extends State<SupportScreen> {
             items: const [
               DropdownMenuItem(value: null, child: Text('Todos')),
               DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
-              DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+              DropdownMenuItem(value: 'IN_PROGRESS',
+                  child: Text('En proceso')),
               DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
             ],
             onChanged: (v) {
@@ -271,65 +352,118 @@ class _SupportScreenState extends State<SupportScreen> {
           ),
         ),
         if (_loadingAll)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator())),
-        if (_all.isEmpty && !_loadingAll) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Sin casos todavía.')),
+          const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator())),
+        if (_all.isEmpty && !_loadingAll)
+          const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text('Sin casos todavía.')),
         for (final r in _all)
           ExpansionTile(
             key: ValueKey(r.id),
             leading: CircleAvatar(
               radius: 18,
-              backgroundColor: AppColors.blue.withValues(alpha: 0.15),
+              backgroundColor:
+                  AppColors.blue.withValues(alpha: 0.15),
               child: Text('#${r.id}',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.blue)),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.blue)),
             ),
-            title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${r.userName ?? 'Usuario'} · ${r.category}'),
+            title: Text(r.title,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+                '${r.userName ?? 'Usuario'} · ${r.category}'),
             childrenPadding: const EdgeInsets.all(16),
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: r.imageUrl!,
-                        width: 90,
-                        height: 90,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(width: 90, height: 90, color: AppColors.subtext.withValues(alpha: 0.1)),
-                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                  if (r.imageUrl != null && r.imageUrl!.isNotEmpty)
+                    ...[
+                      GestureDetector(
+                        onTap: () =>
+                            _showImageDialog(r.imageUrl!),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: r.imageUrl!,
+                            width: 90,
+                            height: 90,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                                width: 90, height: 90,
+                                color: AppColors.subtext
+                                    .withValues(alpha: 0.1)),
+                            errorWidget: (context, url, error) =>
+                                const Icon(
+                                    Icons.broken_image, size: 32),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
+                      const SizedBox(width: 12),
+                    ],
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
-                        Text(r.description ?? '', style: const TextStyle(fontSize: 13)),
+                        Text(r.description ?? '',
+                            style: const TextStyle(fontSize: 13)),
                         const SizedBox(height: 10),
                         Row(
                           children: [
                             Chip(
-                              label: Text(r.status, style: const TextStyle(fontSize: 10, color: Colors.white)),
-                              backgroundColor: _statusColor(r.status),
+                              label: Text(r.status,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white)),
+                              backgroundColor:
+                                  _statusColor(r.status),
                             ),
                             const SizedBox(width: 12),
-                            Text('Creado: ${r.createdAt}', style: const TextStyle(fontSize: 11, color: AppColors.subtext)),
+                            Text('Creado: ${r.createdAt}',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.subtext)),
                           ],
                         ),
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Cambiar estado'),
+                          decoration: const InputDecoration(
+                              labelText: 'Cambiar estado'),
                           initialValue: r.status,
                           items: const [
-                            DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
-                            DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
-                            DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+                            DropdownMenuItem(
+                                value: 'OPEN',
+                                child: Text('OPEN')),
+                            DropdownMenuItem(
+                                value: 'IN_PROGRESS',
+                                child: Text('En proceso')),
+                            DropdownMenuItem(
+                                value: 'RESOLVED',
+                                child: Text('Resuelto')),
                           ],
-                          onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
+                          onChanged: (v) => v != null
+                              ? _changeStatus(r.id, v)
+                              : null,
                         ),
+                        if (r.status == 'RESOLVED') ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red),
+                              onPressed: _deleting ? null :
+                                  () => _deleteReport(r.id),
+                              tooltip: 'Eliminar caso',
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -348,5 +482,17 @@ class _SupportScreenState extends State<SupportScreen> {
       onRefresh: _refresh,
       child: _isAdmin ? _buildAdminView() : _buildUserView(),
     );
+  }
+
+  Future<void> _changeStatus(int id, String status) async {
+    try {
+      await _service.updateStatus(id, status);
+      _snack('Caso #$id → $status.', ok: true);
+      _loadAll();
+    } on ApiException catch (e) {
+      _snack(e.message, ok: false);
+    } catch (e) {
+      _snack('No se pudo actualizar el caso: $e', ok: false);
+    }
   }
 }

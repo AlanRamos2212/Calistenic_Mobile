@@ -79,6 +79,11 @@ class SupportService {
     final list = data as List<dynamic>;
     return list.map((e) => AppUser.fromJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// Delete a report. ADMIN only; only RESOLVED reports can be removed.
+  Future<void> delete(int id) async {
+    await _api.delete('/reports/$id');
+  }
 }
 
 /// Registered user summary (no sensitive fields).
