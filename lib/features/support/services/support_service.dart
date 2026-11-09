@@ -72,4 +72,38 @@ class SupportService {
     final data = await _api.patch('/reports/$id', body: {'status': status});
     return SupportReport.fromJson(data as Map<String, dynamic>);
   }
+
+  /// All registered users. ADMIN only.
+  Future<List<AppUser>> users() async {
+    final data = await _api.get('/auth/users');
+    final list = data as List<dynamic>;
+    return list.map((e) => AppUser.fromJson(e as Map<String, dynamic>)).toList();
+  }
+}
+
+/// Registered user summary (no sensitive fields).
+class AppUser {
+  AppUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    this.createdAt,
+    this.avatarUrl,
+  });
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final String? createdAt;
+  final String? avatarUrl;
+
+  factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
+        id: '${j['id'] ?? ''}',
+        name: (j['name'] as String? ?? '').trim(),
+        email: (j['email'] as String? ?? '').trim(),
+        role: (j['role'] as String? ?? 'USER').trim(),
+        createdAt: j['createdAt'] as String?,
+        avatarUrl: j['avatarUrl'] as String?,
+      );
 }

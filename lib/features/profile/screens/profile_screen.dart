@@ -16,6 +16,7 @@ import '../../stats/services/stats_service.dart';
 import '../models/user_profile_model.dart';
 import '../services/profile_service.dart';
 import '../../support/screens/support_screen.dart';
+import '../../support/screens/users_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -447,6 +448,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               MaterialPageRoute(builder: (_) => const SupportScreen()),
             ),
           ),
+          if (_profile?.role == 'ADMIN') ...[
+            const SizedBox(height: 8),
+            _buildTile(
+              icon: Icons.admin_panel_settings,
+              title: 'Usuarios registrados',
+              subtitle: 'Gestión de usuarios (ADMIN)',
+              trailing: Icons.chevron_right,
+              color: Colors.amber,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const UsersScreen()),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 24),
 
