@@ -48,20 +48,23 @@ class _SupportScreenState extends State<SupportScreen> {
   Future<void> _checkRole() async {
     try {
       final role = await _auth.getUserRole();
-      if (mounted) setState(() => _isAdmin == true ? _isAdmin : role == 'ADMIN');
+      if (mounted) setState(() => _isAdmin = role == 'ADMIN');
     } catch (_) {
       // best effort
     }
   }
 
   Future<void> _refresh() async {
-    try {
-      final list = await _service.mine();
-      if (mounted) setState(() => _mine = list);
-    } on ApiException {
-      // best effort: the form stays usable
+    if (_isAdmin) {
+      await _loadAll();
+    } else {
+      try {
+        final list = await _service.mine();
+        if (mounted) setState(() => _mine = list);
+      } on ApiException {
+        // best effort: the form stays usable
+      }
     }
-    if (_isAdmin) await _loadAll();
   }
 
   Future<void> _loadAll() async {
@@ -133,205 +136,6 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FrameScaffold(
-      title: 'Soporte técnico',
-      onRefresh: _refresh,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ── Form: reportar bug (usuario) ─────────────────────────────
-          const Padding(
-            padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: Text('Reporta un bug: queda guardado en la BD (Práctica 7).'),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: TextField(controller: _titleCtrl, maxLength: 120, decoration: const InputDecoration(labelText: 'Título')),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: DropdownButtonFormField<String>(
-              initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Categoría'),
-              items: const [
-                DropdownMenuItem(value: 'CRASH', child: Text('Crash / cierre súbito')),
-                DropdownMenuItem(value: 'UI', child: Text('Interfaz')),
-                DropdownMenuItem(value: 'DATOS', child: Text('Datos')),
-                DropdownMenuItem(value: 'RED', child: Text('Conectividad')),
-                DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
-              ],
-              onChanged: (v) => setState(() => _category = v ?? 'OTRO'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: TextField(
-              controller: _descCtrl,
-              maxLength: 4000,
-              maxLines: 4,
-              decoration: const InputDecoration(labelText: 'Descripción (pasos para reproducirlo)'),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: OutlinedButton.icon(onPressed: _pick, icon: const Icon(Icons.photo), label: Text(_image == null ? 'Adjuntar captura (opcional)' : 'Captura lista ✓')),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-            child: FilledButton(
-              onPressed: _sending ? null : _send,
-              child: _sending ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Enviar reporte'),
-            ),
-          ),
-          const Divider(),
-
-          // ── Mis reportes (usuario) ───────────────────────────────────
-          const Text('Mis reportes', style: TextStyle(fontWeight: FontWeight.bold)),
-          if (_mine.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Sin reportes todavía.')),
-          for (final r in _mine)
-            Card(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('#${r.id} ${r.title}'),
-                subtitle: Text(r.createdAt),
-                trailing: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
-                    if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: r.imageUrl!,
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
-                          errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-
-          // ── Panel ADMIN (solo si rol = ADMIN) ────────────────────────
-          if (_isAdmin) ...[
-            const Divider(),
-            const Text('Panel ADMIN - Todos los casos', style: TextStyle(fontWeight: FontWeight.bold)),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: DropdownButtonFormField<String>(
-                value: _adminFilter.isEmpty ? null : _adminFilter,
-                decoration: const InputDecoration(labelText: 'Filtrar por estado'),
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('Todos')),
-                  DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
-                  DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
-                  DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
-                ],
-                onChanged: (v) {
-                  setState(() => _adminFilter = v ?? '');
-                  _loadAll();
-                },
-              ),
-            ),
-            if (_loadingAll)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: CircularProgressIndicator()),
-            if (_all.isEmpty && !_loadingAll) const Text('Sin casos todavía.'),
-            for (final r in _all)
-              ExpansionTile(
-                key: ValueKey(r.id),
-                leading: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.blue.withValues(alpha: 0.15),
-                  child: Text('#${r.id}',
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.blue)),
-                ),
-                title: Text(r.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${r.userName ?? 'Usuario'} · ${r.category}'),
-                childrenPadding: const EdgeInsets.all(16),
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: CachedNetworkImage(
-                            imageUrl: r.imageUrl!,
-                            width: 90,
-                            height: 90,
-                            fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                                width: 90, height: 90,
-                                color: AppColors.subtext.withValues(alpha: 0.1)),
-                            errorWidget: (context, url, error) =>
-                                const Icon(Icons.broken_image, size: 32),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(r.description ?? '',
-                                style: const TextStyle(fontSize: 13)),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Chip(
-                                    label: Text(r.status,
-                                        style: const TextStyle(
-                                            fontSize: 10, color: Colors.white)),
-                                    backgroundColor: _statusColor(r.status)),
-                                const SizedBox(width: 12),
-                                Text('Creado: ${r.createdAt}',
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.subtext)),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                  labelText: 'Cambiar estado'),
-                              initialValue: r.status,
-                              items: const [
-                                DropdownMenuItem(
-                                    value: 'OPEN', child: Text('OPEN')),
-                                DropdownMenuItem(value: 'IN_PROGRESS',
-                                    child: Text('En proceso')),
-                                DropdownMenuItem(value: 'RESOLVED',
-                                    child: Text('Resuelto')),
-                              ],
-                              onChanged: (v) => v != null
-                                  ? _changeStatus(r.id, v)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Color _statusColor(String status) {
     switch (status) {
       case 'OPEN':
@@ -343,5 +147,206 @@ class _SupportScreenState extends State<SupportScreen> {
       default:
         return AppColors.subtext;
     }
+  }
+
+  // ── Vista de Usuario Normal ──────────────────────────────────────────
+
+  Widget _buildUserView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: Text('Reporta un bug: queda guardado en la BD (Práctica 7).'),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: TextField(
+            controller: _titleCtrl,
+            maxLength: 120,
+            decoration: const InputDecoration(labelText: 'Título'),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: DropdownButtonFormField<String>(
+            initialValue: _category,
+            decoration: const InputDecoration(labelText: 'Categoría'),
+            items: const [
+              DropdownMenuItem(value: 'CRASH', child: Text('Crash / cierre súbito')),
+              DropdownMenuItem(value: 'UI', child: Text('Interfaz')),
+              DropdownMenuItem(value: 'DATOS', child: Text('Datos')),
+              DropdownMenuItem(value: 'RED', child: Text('Conectividad')),
+              DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
+            ],
+            onChanged: (v) => setState(() => _category = v ?? 'OTRO'),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: TextField(
+            controller: _descCtrl,
+            maxLength: 4000,
+            maxLines: 4,
+            decoration: const InputDecoration(labelText: 'Descripción (pasos para reproducirlo)'),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: OutlinedButton.icon(
+            onPressed: _pick,
+            icon: const Icon(Icons.photo),
+            label: Text(_image == null ? 'Adjuntar captura (opcional)' : 'Captura lista ✓'),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: FilledButton(
+            onPressed: _sending ? null : _send,
+            child: _sending
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('Enviar reporte'),
+          ),
+        ),
+        const Divider(),
+        const Text('Mis reportes', style: TextStyle(fontWeight: FontWeight.bold)),
+        if (_mine.isEmpty) const Padding(padding: EdgeInsets.only(top: 8), child: Text('Sin reportes todavía.')),
+        for (final r in _mine)
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('#${r.id} ${r.title}'),
+              subtitle: Text(r.createdAt),
+              trailing: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
+                  if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: r.imageUrl!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
+                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Vista de Admin ───────────────────────────────────────────────────
+
+  Widget _buildAdminView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Panel de Soporte - ADMIN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: DropdownButtonFormField<String>(
+            value: _adminFilter.isEmpty ? null : _adminFilter,
+            decoration: const InputDecoration(labelText: 'Filtrar por estado'),
+            items: const [
+              DropdownMenuItem(value: null, child: Text('Todos')),
+              DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
+              DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+              DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+            ],
+            onChanged: (v) {
+              setState(() => _adminFilter = v ?? '');
+              _loadAll();
+            },
+          ),
+        ),
+        if (_loadingAll)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Center(child: CircularProgressIndicator())),
+        if (_all.isEmpty && !_loadingAll) const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text('Sin casos todavía.')),
+        for (final r in _all)
+          ExpansionTile(
+            key: ValueKey(r.id),
+            leading: CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.blue.withValues(alpha: 0.15),
+              child: Text('#${r.id}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.blue)),
+            ),
+            title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('${r.userName ?? 'Usuario'} · ${r.category}'),
+            childrenPadding: const EdgeInsets.all(16),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: CachedNetworkImage(
+                        imageUrl: r.imageUrl!,
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(width: 90, height: 90, color: AppColors.subtext.withValues(alpha: 0.1)),
+                        errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(r.description ?? '', style: const TextStyle(fontSize: 13)),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Chip(
+                              label: Text(r.status, style: const TextStyle(fontSize: 10, color: Colors.white)),
+                              backgroundColor: _statusColor(r.status),
+                            ),
+                            const SizedBox(width: 12),
+                            Text('Creado: ${r.createdAt}', style: const TextStyle(fontSize: 11, color: AppColors.subtext)),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(labelText: 'Cambiar estado'),
+                          initialValue: r.status,
+                          items: const [
+                            DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
+                            DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
+                            DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
+                          ],
+                          onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FrameScaffold(
+      title: 'Soporte técnico',
+      onRefresh: _refresh,
+      child: _isAdmin ? _buildAdminView() : _buildUserView(),
+    );
   }
 }
