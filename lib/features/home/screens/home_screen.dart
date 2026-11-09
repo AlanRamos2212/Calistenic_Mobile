@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _exerciseService = ExerciseService();
   ExerciseModel? _featuredExercise;
   String _userName = 'Alex';
+  String _userRole = 'USER';
   UserStats? _stats;
   bool _statsFailed = false;
   bool _isOfflineFallback = false;
@@ -35,8 +36,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserName();
+    _loadRole();
     _loadStats();
     _loadFeaturedExercise();
+  }
+
+  Future<void> _loadRole() async {
+    final role = await _authService.getUserRole();
+    if (role != null && mounted) setState(() => _userRole = role);
   }
 
   Future<void> _loadFeaturedExercise() async {
@@ -128,7 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
           const SectionLabel('HOY EN TU PROGRESO'),
           const SizedBox(height: 8),
           Text(
-            'Vamos a por ello, $_userName.',
+            _userRole == 'ADMIN'
+                ? 'Panel de administración, $_userName.'
+                : 'Vamos a por ello, $_userName.',
             style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 16),

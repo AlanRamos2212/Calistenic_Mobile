@@ -247,49 +247,101 @@ class _SupportScreenState extends State<SupportScreen> {
               const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: CircularProgressIndicator()),
             if (_all.isEmpty && !_loadingAll) const Text('Sin casos todavía.'),
             for (final r in _all)
-              Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('#${r.id} ${r.title}'),
-                  subtitle: Text('${r.userName ?? 'Usuario'} · ${r.createdAt}'),
-                  trailing: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+              ExpansionTile(
+                key: ValueKey(r.id),
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.blue.withValues(alpha: 0.15),
+                  child: Text('#${r.id}',
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.blue)),
+                ),
+                title: Text(r.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text('${r.userName ?? 'Usuario'} · ${r.category}'),
+                childrenPadding: const EdgeInsets.all(16),
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Chip(label: Text(r.status, style: const TextStyle(fontSize: 10))),
                       if (r.imageUrl != null && r.imageUrl!.isNotEmpty) ...[
-                        const SizedBox(height: 6),
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: CachedNetworkImage(
                             imageUrl: r.imageUrl!,
-                            width: 60,
-                            height: 60,
+                            width: 90,
+                            height: 90,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(width: 60, height: 60, color: AppColors.subtext.withValues(alpha: 0.1)),
-                            errorWidget: (context, url, error) => const Icon(Icons.broken_image, size: 32),
+                            placeholder: (context, url) => Container(
+                                width: 90, height: 90,
+                                color: AppColors.subtext.withValues(alpha: 0.1)),
+                            errorWidget: (context, url, error) =>
+                                const Icon(Icons.broken_image, size: 32),
                           ),
                         ),
+                        const SizedBox(width: 12),
                       ],
-                      const SizedBox(height: 6),
-                      DropdownButtonFormField<String>(
-                        initialValue: r.status,
-                        decoration: const InputDecoration(labelText: 'Estado'),
-                        items: const [
-                          DropdownMenuItem(value: 'OPEN', child: Text('OPEN')),
-                          DropdownMenuItem(value: 'IN_PROGRESS', child: Text('En proceso')),
-                          DropdownMenuItem(value: 'RESOLVED', child: Text('Resuelto')),
-                        ],
-                        onChanged: (v) => v != null ? _changeStatus(r.id, v) : null,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.description ?? '',
+                                style: const TextStyle(fontSize: 13)),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Chip(
+                                    label: Text(r.status,
+                                        style: const TextStyle(
+                                            fontSize: 10, color: Colors.white)),
+                                    backgroundColor: _statusColor(r.status)),
+                                const SizedBox(width: 12),
+                                Text('Creado: ${r.createdAt}',
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.subtext)),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                  labelText: 'Cambiar estado'),
+                              initialValue: r.status,
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'OPEN', child: Text('OPEN')),
+                                DropdownMenuItem(value: 'IN_PROGRESS',
+                                    child: Text('En proceso')),
+                                DropdownMenuItem(value: 'RESOLVED',
+                                    child: Text('Resuelto')),
+                              ],
+                              onChanged: (v) => v != null
+                                  ? _changeStatus(r.id, v)
+                                  : null,
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
+                ],
               ),
           ],
         ],
       ),
     );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'OPEN':
+        return Colors.orange;
+      case 'IN_PROGRESS':
+        return Colors.blue;
+      case 'RESOLVED':
+        return Colors.green;
+      default:
+        return AppColors.subtext;
+    }
   }
 }
