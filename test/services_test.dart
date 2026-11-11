@@ -1,7 +1,10 @@
 import 'dart:convert';
 
+import 'package:calistenic_mobile/core/constants/api_constants.dart';
 import 'package:calistenic_mobile/core/network/api_client.dart';
 import 'package:calistenic_mobile/core/network/api_exception.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
 import 'package:calistenic_mobile/features/achievements/services/achievement_service.dart';
 import 'package:calistenic_mobile/features/exercises/services/exercise_service.dart';
 import 'package:calistenic_mobile/features/profile/services/profile_service.dart';
@@ -516,6 +519,45 @@ void main() {
         client: MockClient((_) async => throw http.ClientException('down')),
       );
       expect((await offline.list()).first.title, 'Fuerza Superior');
+    });
+
+    test('list throws when backend is down and cache is empty', () async {
+      final storage = FlutterSecureStorage();
+      await storage.delete(key: ApiConstants.cacheRoutines);
+      final offline = RoutineService(
+        client: MockClient((_) async => throw http.ClientException('down')),
+        storage: storage,
+      );
+      await expectLater(
+        offline.list(),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('list rethrows 401 without falling back to cache', () async {
+      final httpClient = MockClient((_) async => http.Response(
+        '{"message":"No autorizado"}', 401,
+        headers: {'content-type': 'application/json'},
+      ));
+      final service = RoutineService(client: httpClient);
+      await expectLater(
+        service.list(),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401)),
+      );
+    });
+
+    test('list throws when backend returns invalid JSON', () async {
+      final storage = FlutterSecureStorage();
+      await storage.delete(key: ApiConstants.cacheRoutines);
+      final httpClient = MockClient((_) async => http.Response(
+        '{invalid json', 200,
+        headers: {'content-type': 'application/json'},
+      ));
+      final service = RoutineService(client: httpClient, storage: storage);
+      await expectLater(
+        service.list(),
+        throwsA(isA<Exception>()),
+      );
     });  });
 
   // ── WorkoutService (wearable-sessions start/stop) ──────────────────────
@@ -568,6 +610,53 @@ void main() {
       expect(body.containsKey('avgHr'), isFalse);
       expect(body.containsKey('maxHr'), isFalse);
       expect(body.containsKey('minHr'), isFalse);
+    });
+
+    test('startSession converts numeric string id from server', () async {
+      final httpClient = MockClient((request) async {
+        expect(request.url.path.endsWith('/wearable-sessions/start'), isTrue);
+        expect(request.method, 'POST');
+        return http.Response(jsonEncode({'id': '77'}), 200,
+            headers: {'content-type': 'application/json'});
+      });
+
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      final id = await service.startSession(2);
+
+      expect(id, 77);
+    });
+
+    test('startSession throws when response has no id', () async {
+      final httpClient = MockClient((_) async => http.Response(
+        jsonEncode({'exerciseId': 2}), 200,
+        headers: {'content-type': 'application/json'},
+      ));
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      await expectLater(
+        service.startSession(2),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
+    test('startSession throws when response structure is invalid', () async {
+      final httpClient = MockClient((_) async => http.Response(
+        '[]', 200,
+        headers: {'content-type': 'application/json'},
+      ));
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      await expectLater(
+        service.startSession(2),
+        throwsA(isA<ApiException>()),
+      );
+    });
+
+    test('startSession propagates network error', () async {
+      final httpClient = MockClient((_) async => throw http.ClientException('down'));
+      final service = WorkoutService(client: ApiClient(client: httpClient));
+      await expectLater(
+        service.startSession(2),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 }
