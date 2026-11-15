@@ -5,6 +5,7 @@ import 'package:calistenic_mobile/core/network/api_client.dart';
 import 'package:calistenic_mobile/core/network/api_exception.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
+import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:calistenic_mobile/features/achievements/services/achievement_service.dart';
 import 'package:calistenic_mobile/features/exercises/services/exercise_service.dart';
 import 'package:calistenic_mobile/features/profile/services/profile_service.dart';
@@ -15,8 +16,6 @@ import 'package:calistenic_mobile/features/routines/services/workout_service.dar
 import 'package:calistenic_mobile/features/social/models/post_model.dart';
 import 'package:calistenic_mobile/features/social/services/social_service.dart';
 import 'package:calistenic_mobile/features/stats/services/stats_service.dart';
-import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
-import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';

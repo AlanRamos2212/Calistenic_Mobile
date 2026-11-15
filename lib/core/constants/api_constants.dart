@@ -24,6 +24,7 @@ class ApiConstants {
   static const String statsUser = '/stats/user';
   static const String achievements = '/achievements';
   static const String posts = '/posts';
+  static const String wearableSessions = '/wearable-sessions';
 
   // Routines (Fase B contract)
   static const String routines = '/routines';
