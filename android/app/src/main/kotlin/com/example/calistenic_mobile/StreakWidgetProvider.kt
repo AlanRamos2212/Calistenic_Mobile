@@ -26,7 +26,10 @@ class StreakWidgetProvider : HomeWidgetProvider() {
         widgetData: SharedPreferences
     ) {
         appWidgetIds.forEach { widgetId ->
-            val streak = widgetData.getString(StreakKeys.STREAK_DAYS, "0")
+            // Read via the raw map: HomeWidget may store the streak as Int
+            // (HomeWidget.saveWidgetData<int>) and a typed getString() would
+            // throw ClassCastException, crashing the whole app process.
+            val streak = widgetData.all[StreakKeys.STREAK_DAYS]?.toString()
                     ?.takeIf { it.isNotBlank() } ?: "0"
 
             val views = RemoteViews(context.packageName, R.layout.streak_widget).apply {
