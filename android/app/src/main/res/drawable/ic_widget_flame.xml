@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flama del widget (Material whatshot), tinte naranja fuego. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF8A3C"
+        android:pathData="M13.5,0.67s0.74,2.21 0.74,4c0,1.77 -0.73,3.65 -2.03,5.1C11,10.3 8.85,11 6.94,11 4.87,11 3,10 3,10s2.2,-1.2 2.2,-3.5c0,-1.2 0.6,-2.5 1.6,-3.4L13.5,0.67zM11,13c1.9,0 3.5,1.6 3.5,3.5S12.9,20 11,20s-3.5,-1.6 -3.5,-3.5S9.1,13 11,13z" />
+</vector>
