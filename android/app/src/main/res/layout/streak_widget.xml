@@ -1,82 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Widget de racha: fila con insignia de flama + numero grande de dias,
-     fondo degradado redondeado (bg_streak_widget). -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Widget de racha: imagen de bienvenida de la app desenfocada y oscurecida
+     de fondo (widget_bg_home + velo bg_widget_scrim), insignia de flama,
+     numero grande de dias y branding CalisthenicTrack. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/bg_streak_widget"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp">
+    android:layout_height="match_parent">
 
-    <FrameLayout
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="@drawable/bg_flame_badge">
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:importantForAccessibility="no"
+        android:src="@drawable/widget_bg_home" />
 
-        <ImageView
-            android:id="@+id/widget_flame"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
-            android:layout_gravity="center"
-            android:contentDescription="@string/widget_title"
-            android:src="@drawable/ic_widget_flame" />
-    </FrameLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_widget_scrim" />
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:layout_marginStart="14dp"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_flame_badge">
+
+            <ImageView
+                android:id="@+id/widget_flame"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_title"
+                android:src="@drawable/ic_widget_flame" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_title"
+                android:textColor="#D9E4F2"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.14" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="bottom">
+
+                <TextView
+                    android:id="@+id/widget_streak"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/widget_streak_value"
+                    android:textColor="#FFFFFF"
+                    android:textSize="30sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/widget_days"
+                    android:textColor="#FFC36A"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.08" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/widget_title"
-            android:textColor="#8FA3BF"
-            android:textSize="10sp"
+            android:text="@string/widget_subtitle"
+            android:textColor="#B0BFD4"
+            android:textSize="9sp"
             android:textStyle="bold"
-            android:letterSpacing="0.14" />
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="bottom">
-
-            <TextView
-                android:id="@+id/widget_streak"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/widget_streak_value"
-                android:textColor="#FFFFFF"
-                android:textSize="30sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_marginBottom="4dp"
-                android:text="@string/widget_days"
-                android:textColor="#E4A54A"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.08" />
-        </LinearLayout>
+            android:letterSpacing="0.06" />
     </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/widget_subtitle"
-        android:textColor="#43597A"
-        android:textSize="9sp"
-        android:textStyle="bold"
-        android:letterSpacing="0.06" />
-
-</LinearLayout>
+</FrameLayout>
