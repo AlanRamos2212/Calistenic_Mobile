@@ -203,13 +203,23 @@ void main() {
   group('P13 Fase 3 | Integracion | app <-> servicio wearable-sessions', () {
     test('AUT-04 GET wearable-sessions 200 -> racha calculada y persistida',
         () async {
+      // Fechas RELATIVAS a hoy: refreshFromBackend computa con
+      // DateTime.now() y parseSessionDates hace toLocal(), asi que fechas
+      // fijas en el mock se rompen cuando cambia el dia o la zona horaria
+      // (defecto detectado por el CI en el runner UTC de GitHub Actions).
+      final now = DateTime.now();
+      String isoDaysAgo(int daysAgo) =>
+          DateTime(now.year, now.month, now.day - daysAgo, 12, 0)
+              .toUtc()
+              .toIso8601String();
+
       final httpClient = MockClient((request) async {
         expect(request.url.path.endsWith('/api/wearable-sessions'), isTrue);
         expect(request.headers['Authorization'], 'Bearer $_validToken');
         return _json([
-          {'id': 1, 'startedAt': '2026-11-16T13:30:00Z'},
-          {'id': 2, 'startedAt': '2026-11-15T14:10:00Z'},
-          {'id': 3, 'startedAt': '2026-11-14T15:20:00Z'},
+          {'id': 1, 'startedAt': isoDaysAgo(0)},
+          {'id': 2, 'startedAt': isoDaysAgo(1)},
+          {'id': 3, 'startedAt': isoDaysAgo(2)},
         ], 200);
       });
 
