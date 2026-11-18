@@ -28,9 +28,13 @@ class StreakService {
   static const String androidWidgetName = 'StreakWidgetProvider';
 
   /// Reads the streak currently visible on the home screen widget.
+  ///
+  /// Reads dynamically (not as a fixed type): saveStreak persists an int,
+  /// so a typed `getWidgetData<String>` would throw a cast error exactly
+  /// like the ClassCastException that crashed the app in v1.1.0.
   Future<int> readStreak() async {
-    final value = await HomeWidget.getWidgetData<String>(streakKey);
-    return int.tryParse(value ?? '') ?? 0;
+    final value = await HomeWidget.getWidgetData<dynamic>(streakKey);
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   /// Persists the streak for the widget and triggers a widget refresh.

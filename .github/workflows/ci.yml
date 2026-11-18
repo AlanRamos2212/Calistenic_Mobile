@@ -1,0 +1,45 @@
+# ==========================================================================
+# PRACTICAS 13-14 - Fase 4: Validacion continua (CI)
+#
+# Pipeline de integracion continua para CalistenicTrack Mobile.
+# Se ejecuta automaticamente en cada push y pull request dirigido a las
+# ramas principales, ejecutando el analisis estatico y la suite completa
+# de pruebas (incluye las pruebas automatizadas AUT-01..AUT-06 de las
+# practicas 13-14 en test/practica13_aut_test.dart).
+#
+# Prerequisito en el servidor: Flutter SDK estable (instalado por
+# subosito/flutter-action con cache de pub para acelerar las corridas).
+# ==========================================================================
+name: CI - CalistenicTrack Mobile
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+jobs:
+  analyze-and-test:
+    name: Analisis estatico + pruebas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias (flutter pub get)
+        run: flutter pub get
+
+      - name: Analisis estatico (flutter analyze)
+        # --no-fatal-infos: la deprecacion preexistente en support_screen.dart
+        # no debe romper el pipeline (los warnings siguen siendo fatales).
+        run: flutter analyze --no-fatal-infos
+
+      - name: Ejecutar suite completa de pruebas (flutter test)
+        run: flutter test --reporter expanded
