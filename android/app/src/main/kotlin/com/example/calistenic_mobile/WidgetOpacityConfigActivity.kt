@@ -34,7 +34,8 @@ class WidgetOpacityConfigActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Si el usuario cierra con "back", el sistema descarta el widget recién añadido.
+        // Valor por defecto; finishWithoutChanges() lo cambia a RESULT_OK en el
+        // flujo de añadido para que el launcher no descarte el widget.
         setResult(RESULT_CANCELED)
         setContentView(R.layout.widget_opacity_config)
 
