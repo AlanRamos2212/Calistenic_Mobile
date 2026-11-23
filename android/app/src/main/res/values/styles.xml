@@ -15,4 +15,9 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+
+    <!-- Diálogo usado al añadir el widget o al tocarlo para cambiar la opacidad. -->
+    <style name="WidgetOpacityDialog" parent="@android:style/Theme.Material.Light.Dialog">
+        <item name="android:windowNoTitle">true</item>
+    </style>
 </resources>

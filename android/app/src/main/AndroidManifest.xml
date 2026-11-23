@@ -32,6 +32,15 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Configuración de opacidad: se abre al añadir el widget (android:configure)
+             y al tocarlo (PendingIntent desde StreakWidgetUpdater). -->
+        <activity
+            android:name=".WidgetOpacityConfigActivity"
+            android:exported="true"
+            android:label="@string/widget_opacity_title"
+            android:theme="@style/WidgetOpacityDialog" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

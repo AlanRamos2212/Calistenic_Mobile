@@ -5,4 +5,14 @@
     <string name="widget_days">DÍAS</string>
     <string name="widget_subtitle">CalisthenicTrack</string>
     <string name="widget_streak_value">%1$s</string>
+
+    <!-- Configuración de opacidad del widget -->
+    <string name="widget_opacity_title">Opacidad del widget</string>
+    <string name="widget_opacity_hint">Ajusta qué tan visible quieres la racha en tu pantalla de inicio.</string>
+    <string name="widget_opacity_value">Opacidad: %1$d%%</string>
+    <string name="widget_opacity_save">Guardar</string>
+    <string name="widget_opacity_cancel">Cancelar</string>
+    <string name="widget_opacity_use_default">Usar 100% (predeterminado)</string>
+    <string name="widget_opacity_open_app">Abrir CalistenicTrack</string>
+    <string name="widget_opacity_saved">Opacidad actualizada</string>
 </resources>
