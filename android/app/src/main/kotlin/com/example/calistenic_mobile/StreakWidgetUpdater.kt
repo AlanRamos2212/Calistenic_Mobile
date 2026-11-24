@@ -1,5 +1,6 @@
 package com.example.calistenic_mobile
 
+import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -16,6 +17,9 @@ object StreakWidgetUpdater {
     private const val COLOR_DAYS = 0xFFFFC36A.toInt()
     private const val COLOR_SUBTITLE = 0xFFB0BFD4.toInt()
 
+    private const val ACTION_OPEN_OPACITY =
+        "com.example.calistenic_mobile.OPEN_WIDGET_OPACITY"
+
     fun update(context: Context, manager: AppWidgetManager, widgetId: Int) {
         val prefs = context.getSharedPreferences(WidgetPrefs.PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -24,14 +28,7 @@ object StreakWidgetUpdater {
         val streak = prefs.all[StreakKeys.STREAK_DAYS]?.toString()
             ?.takeIf { it.isNotBlank() } ?: "0"
 
-        val configIntent = Intent(context, WidgetOpacityConfigActivity::class.java).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-            putExtra(WidgetOpacityConfigActivity.EXTRA_FROM_WIDGET_TAP, true)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
-        val configPendingIntent = PendingIntent.getActivity(context, widgetId, configIntent, flags)
+        val configPendingIntent = buildConfigPendingIntent(context, widgetId)
 
         val opacity = WidgetPrefs.readOpacity(context, widgetId).coerceIn(0, 100)
         val views = RemoteViews(context.packageName, R.layout.streak_widget).apply {
@@ -53,6 +50,43 @@ object StreakWidgetUpdater {
         }
 
         manager.updateAppWidget(widgetId, views)
+    }
+
+    /**
+     * Desde API 34 (Android 14) el arranque de actividades en segundo plano está
+     * restringido. Un toque al widget ocurre mientras la app está en background,
+     * así que hay declarar explícitamente que el PendingIntent puede iniciar la
+     * Activity (igual que hace `HomeWidgetLaunchIntent` en home_widget).
+     * Sin esto, el launcher descarta el intent y abre la app por defecto.
+     */
+    private fun buildConfigPendingIntent(context: Context, widgetId: Int): PendingIntent {
+        val intent = Intent(context, WidgetOpacityConfigActivity::class.java).apply {
+            action = ACTION_OPEN_OPACITY
+            `package` = context.packageName
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            putExtra(WidgetOpacityConfigActivity.EXTRA_FROM_WIDGET_TAP, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags = flags or PendingIntent.FLAG_IMMUTABLE
+        }
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return PendingIntent.getActivity(context, widgetId, intent, flags)
+        }
+
+        val options = ActivityOptions.makeBasic()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            options.setPendingIntentCreatorBackgroundActivityStartMode(
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED,
+            )
+        } else {
+            options.pendingIntentBackgroundActivityStartMode =
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+        }
+        return PendingIntent.getActivity(context, widgetId, intent, flags, options.toBundle())
     }
 
     /**
