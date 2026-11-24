@@ -9,15 +9,18 @@ void main() {
   }
 
   group('LoginScreen - validación White Box', () {
-    testWidgets('rechaza contraseña vacía y de 7 caracteres', (tester) async {
+    testWidgets('en login rechaza contraseña vacía pero admite cuentas antiguas',
+        (tester) async {
       final fields = await mountFields(tester);
       final passwordValidator = fields[1].validator!;
 
-      expect(passwordValidator(''), contains('8 y 72'));
-      expect(passwordValidator('1234567'), contains('8 y 72'));
+      expect(passwordValidator(''), contains('Escribe tu contraseña'));
+      expect(passwordValidator('1234567'), isNull);
+      expect(passwordValidator('a' * 73), isNull);
     });
 
-    testWidgets('acepta contraseñas de 8 y 72 caracteres', (tester) async {
+    testWidgets('en login acepta contraseñas de 8 y 72 caracteres',
+        (tester) async {
       final fields = await mountFields(tester);
       final passwordValidator = fields[1].validator!;
 
@@ -25,9 +28,18 @@ void main() {
       expect(passwordValidator('a' * 72), isNull);
     });
 
-    testWidgets('rechaza contraseña de 73 caracteres', (tester) async {
-      final fields = await mountFields(tester);
-      expect(fields[1].validator!('a' * 73), contains('8 y 72'));
+    testWidgets('en registro mantiene la regla de 8 a 72 caracteres',
+        (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+      await tester.tap(find.text('Crear una cuenta'));
+      await tester.pump();
+      final fields = tester.widgetList<TextFormField>(find.byType(TextFormField)).toList();
+      final passwordValidator = fields[2].validator!;
+
+      expect(passwordValidator(''), contains('8 y 72'));
+      expect(passwordValidator('1234567'), contains('8 y 72'));
+      expect(passwordValidator('a' * 73), contains('8 y 72'));
+      expect(passwordValidator('12345678'), isNull);
     });
 
     testWidgets('rechaza correos vacíos, sin arroba y sin dominio',

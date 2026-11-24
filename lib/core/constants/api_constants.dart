@@ -2,12 +2,12 @@
 class ApiConstants {
   ApiConstants._();
 
-  /// Default API base URL.
-  /// 10.0.2.2 reaches the host machine from an Android emulator.
-  /// On physical devices, override with `--dart-define=API_BASE_URL=http://<PC-LAN-IP>:8082/api`.
+  /// API base URL. Production by default so release APKs work on physical devices.
+  /// For local development override with:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8082/api
   static final String baseUrl = const String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8082/api',
+    defaultValue: 'https://backend-calistenic.onrender.com/api',
   ).replaceFirst(RegExp(r'/+$'), '');
 
   // Auth endpoints (matching Spring Boot AuthController)

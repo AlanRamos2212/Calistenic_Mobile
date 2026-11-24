@@ -51,8 +51,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _validatePassword(String? value) {
     final password = value ?? '';
-    if (password.length < 8 || password.length > 72) {
+    // El minimo de 8 caracteres es una regla de REGISTRO, no de login.
+    // Aplicarla aqui impediria entrar a cuentas antiguas con contrasena corta.
+    if (isRegister && (password.length < 8 || password.length > 72)) {
       return 'La contraseña debe tener entre 8 y 72 caracteres.';
+    }
+    if (password.isEmpty) {
+      return 'Escribe tu contraseña.';
     }
     return null;
   }
